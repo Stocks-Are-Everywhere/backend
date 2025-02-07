@@ -3,7 +3,7 @@ version: "3"
 services:
   # MySQL
   db:
-    container_name: mysql8
+    container_name: onseju-mysql8
     image: mysql:8.0
     command: mysqld
       --default-authentication-plugin=mysql_native_password
@@ -12,7 +12,8 @@ services:
       --wait_timeout=30 --interactive_timeout=600
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: sae
+      MYSQL_DATABASE: onseju
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_MAX_CONNECTIONS: 200
-    ports: "3306:3306";
+    ports:
+      - "3306:3306"
