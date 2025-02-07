@@ -22,21 +22,22 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class Member {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@Column(name = "member_id")
+	private Long id;
 
-    @Column(nullable = false)
-    private String provider;
+	@Column(nullable = false)
+	private String provider;
 
-    @Column(nullable = false)
-    private String email;
+	@Column(nullable = false)
+	private String email;
 
-    @Column(nullable = false)
-    private String nickname;
+	@Column(nullable = false)
+	private String nickname;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private MemberStatus status;
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private MemberStatus status;
 
 }

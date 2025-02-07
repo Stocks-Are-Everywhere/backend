@@ -20,20 +20,21 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class OrderHistory {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@Column(name = "order_history_id")
+	private Long id;
 
-    @Column(nullable = false)
-    private Long sellOrderId;
+	@Column(nullable = false)
+	private Long sellOrderId;
 
-    @Column(nullable = false)
-    private Long buyOrderId;
+	@Column(nullable = false)
+	private Long buyOrderId;
 
-    @Column(nullable = false)
-    private Integer quantity;
+	@Column(nullable = false)
+	private Integer quantity;
 
-    @Column(nullable = false)
-    private Integer price;
+	@Column(nullable = false)
+	private Integer price;
 
 }
