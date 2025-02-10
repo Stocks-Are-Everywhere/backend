@@ -16,4 +16,4 @@ services:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_MAX_CONNECTIONS: 200
     ports:
-      - "3306:3306"
+      - "3307:3307"
