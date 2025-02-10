@@ -2,7 +2,8 @@ package org.scoula.soon_two_people.order.domain;
 
 import static jakarta.persistence.FetchType.*;
 
-import org.scoula.soon_two_people.account.domain.Account;
+import org.scoula.soon_two_people.global.entity.BaseEntity;
+import org.scoula.soon_two_people.member.domain.Account;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -28,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 @AllArgsConstructor
 @Slf4j
 @Table(name = "orders")
-public class Order {
+public class Order extends BaseEntity {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)

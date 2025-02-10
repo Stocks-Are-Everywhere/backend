@@ -1,8 +1,8 @@
-package org.scoula.soon_two_people.account.domain;
+package org.scoula.soon_two_people.member.domain;
 
 import static jakarta.persistence.FetchType.*;
 
-import org.scoula.soon_two_people.member.domain.Member;
+import org.scoula.soon_two_people.global.entity.BaseEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Slf4j
-public class Account {
+public class Account extends BaseEntity {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
