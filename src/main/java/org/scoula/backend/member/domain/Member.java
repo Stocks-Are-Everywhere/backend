@@ -29,17 +29,28 @@ public class Member extends BaseEntity {
 	@Column(name = "member_id")
 	private Long id;
 
-	@Column(nullable = false)
-	private String provider;
+	@Column(nullable = false, unique = true)
+	private String googleId;
 
-	@Column(nullable = false)
+	@Column(nullable = false, unique = true)
+	private String username;
+
+	@Column(nullable = false, unique = true)
 	private String email;
 
 	@Column(nullable = false)
-	private String nickname;
+	@Enumerated(value = EnumType.STRING)
+	private MemberRoleEnum role;
 
-	@Enumerated(EnumType.STRING)
-	@Column(nullable = false)
-	private MemberStatus status;
+	public Member(String googleId, String email, MemberRoleEnum role) {
+		this.googleId = googleId;
+		this.email = email;
+		this.username = parseUsernameFromEmail(email); // Extract username from email
+		this.role = role != null ? role : MemberRoleEnum.USER;
+	}
+
+	private String parseUsernameFromEmail(String email) {
+		return email.substring(0, email.indexOf('@')); // Extract part before '@'
+	}
 
 }
