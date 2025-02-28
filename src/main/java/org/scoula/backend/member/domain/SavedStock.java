@@ -24,11 +24,11 @@ import lombok.extern.slf4j.Slf4j;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Slf4j
-public class Wish extends BaseEntity {
+public class SavedStock extends BaseEntity {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	@Column(name = "wish_id")
+	@Column(name = "saved_stock_id")
 	private Long id;
 
 	@ManyToOne(fetch = LAZY)
@@ -41,5 +41,4 @@ public class Wish extends BaseEntity {
 
 	@Column(nullable = false)
 	private String context;
-
 }
