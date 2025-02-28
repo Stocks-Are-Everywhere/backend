@@ -1,11 +1,11 @@
-package org.scoula.backend.order.service.kiswebsocket;
+package org.scoula.backend.order.controller.response;
 
 import java.time.LocalDateTime;
 
 import lombok.Data;
 
 @Data
-public class StockData {
+public class KisStockResponse {
 	private LocalDateTime time;          // 체결 시각
 	private double currentPrice;  // 현재가
 	private double openPrice;     // 시가

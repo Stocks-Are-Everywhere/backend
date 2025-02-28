@@ -65,12 +65,6 @@ public class OrderService {
 		messagingTemplate.convertAndSend("/topic/orderbook/" + code, orderBook);
 	}
 
-	// 웹소켓 종목별 호가창 생성
-	// public OrderBookResponse getOrderBook(final String code) {
-	// 	final OrderBookService orderBook = addOrderBook(code);
-	// 	return orderBook.getBook();
-	// }
-
 	// JSON 종목별 주문장 스냅샷 생성
 	public OrderSnapshotResponse getSnapshot(final String companyCode) {
 		final OrderBookService orderBook = addOrderBook(companyCode);

@@ -22,7 +22,9 @@ import org.scoula.backend.order.service.exception.MatchingException;
 
 import lombok.extern.slf4j.Slf4j;
 
-// 개별 종목의 주문장
+/**
+ * 개별 종목의 주문장
+ */
 @Slf4j
 public class OrderBookService {
 	// 종목 번호
@@ -34,31 +36,50 @@ public class OrderBookService {
 
 	private final TradeHistoryService tradeHistoryService;
 
-	public OrderBookService(final String companyCode,
-			TradeHistoryService tradeHistoryService) {
+	/**
+	 * 생성자
+	 */
+	public OrderBookService(final String companyCode, TradeHistoryService tradeHistoryService) {
 		this.companyCode = companyCode;
 		this.tradeHistoryService = tradeHistoryService;
 	}
 
-	// TODO : 채결 기준 (-15% - +15%) 적용 필요
+	/**
+	 * 주문 접수 및 처리
+	 */
 	public void received(final Order order) throws MatchingException {
-		// 가격이 0인 경우 시장가 주문으로 처리
 		if (order.getStatus() == OrderStatus.MARKET) {
-			if (order.getType() == Type.BUY) {
-				matchMarketBuyOrder(order);
-			} else {
-				matchMarketSellOrder(order);
-			}
+			processMarketOrder(order);
 		} else {
-			// 기존 지정가 주문 처리
-			if (order.getType() == Type.BUY) {
-				matchBuyOrder(order);
-			} else {
-				matchSellOrder(order);
-			}
+			processLimitOrder(order);
 		}
 	}
 
+	/**
+	 * 시장가 주문 처리
+	 */
+	private void processMarketOrder(final Order order) throws MatchingException {
+		if (order.getType() == Type.BUY) {
+			matchMarketBuyOrder(order);
+		} else {
+			matchMarketSellOrder(order);
+		}
+	}
+
+	/**
+	 * 지정가 주문 처리
+	 */
+	private void processLimitOrder(final Order order) {
+		if (order.getType() == Type.BUY) {
+			matchBuyOrder(order);
+		} else {
+			matchSellOrder(order);
+		}
+	}
+
+	/**
+	 * 지정가 매도 주문 처리
+	 */
 	private void matchSellOrder(final Order sellOrder) {
 		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			log.info("매도 메서드 진입");
@@ -82,20 +103,18 @@ public class OrderBookService {
 		}
 	}
 
-	// TODO : 메서드에서 던지는 throws 제거 고민
+	/**
+	 * 시장가 매도 주문 처리
+	 */
 	private void matchMarketSellOrder(final Order sellOrder) throws MatchingException {
 		log.info("시장가 매도 메서드 진입");
 		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
-
-			// 매도가보다 높거나 같은 매수 주문 찾기
+			// 매수 주문 찾기
 			Map.Entry<BigDecimal, Queue<Order>> bestBuy = buyOrders.firstEntry();
 			if (bestBuy == null) {
 				log.info("남은 시장가 매수 삭제");
-				// 매칭되는 매수 주문이 없으면 남은 주문 그냥 삭제
-				// TODO: 이대로 두어도 되나 ?
 				throw new MatchingException("주문 체결 불가 : " + sellOrder.getRemainingQuantity());
 			}
-			// handleUnmatchedMarketOrder(buyOrder);
 
 			// 주문 매칭 처리
 			matchOrders(bestBuy.getValue(), sellOrder);
@@ -104,10 +123,13 @@ public class OrderBookService {
 			if (bestBuy.getValue().isEmpty()) {
 				buyOrders.remove(bestBuy.getKey());
 			}
-			log.info("시장가 매도 체결 완료");
 		}
+		log.info("시장가 매도 체결 완료");
 	}
 
+	/**
+	 * 지정가 매수 주문 처리
+	 */
 	private void matchBuyOrder(final Order buyOrder) {
 		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			log.info("매수 메서드 진입");
@@ -123,31 +145,31 @@ public class OrderBookService {
 			// 주문 매칭 처리
 			matchOrders(bestSell.getValue(), buyOrder);
 
-			// 매수 큐가 비었으면 제거
+			// 매도 큐가 비었으면 제거
 			if (bestSell.getValue().isEmpty()) {
 				sellOrders.remove(bestSell.getKey());
 			}
 		}
 	}
 
+	/**
+	 * 시장가 매수 주문 처리
+	 */
 	private void matchMarketBuyOrder(final Order buyOrder) throws MatchingException {
 		log.info("시장가 매수 메서드 진입");
 		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
-			// 매수가보다 낮거나 같은 매도 주문 찾기
+			// 매도 주문 찾기
 			Map.Entry<BigDecimal, Queue<Order>> bestSell = sellOrders.firstEntry();
 
 			if (bestSell == null) {
 				log.info("남은 시장가 매도 삭제");
-				// 매칭되는 매도 주문이 없으면 남은 주문 그냥 삭제
-				// TODO: 이대로 두어도 되나 ?
 				throw new MatchingException("주문 체결 불가 : " + buyOrder.getRemainingQuantity());
 			}
-			// handleUnmatchedMarketOrder(buyOrder);
 
 			// 주문 매칭 처리
 			matchOrders(bestSell.getValue(), buyOrder);
 
-			// 매수 큐가 비었으면 제거
+			// 매도 큐가 비었으면 제거
 			if (bestSell.getValue().isEmpty()) {
 				sellOrders.remove(bestSell.getKey());
 			}
@@ -155,6 +177,9 @@ public class OrderBookService {
 		log.info("시장가 매수 체결 완료");
 	}
 
+	/**
+	 * 주문 매칭 처리
+	 */
 	private void matchOrders(final Queue<Order> existingOrders, final Order incomingOrder) {
 		while (!existingOrders.isEmpty() &&
 				incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
@@ -163,11 +188,8 @@ public class OrderBookService {
 			final BigDecimal matchedQuantity = incomingOrder.getRemainingQuantity()
 					.min(existingOrder.getRemainingQuantity());
 
+			// 거래 내역 생성 및 저장
 			TradeHistoryResponse tradeHistory = TradeHistoryResponse.builder()
-					// .sellOrderId(existingOrder.getType() == Type.SELL ?
-					// 	existingOrder.getId() : incomingOrder.getId())
-					// .buyOrderId(existingOrder.getType() == Type.BUY ?
-					// 	existingOrder.getId() : incomingOrder.getId())
 					.companyCode(existingOrder.getCompanyCode())
 					.sellOrderId((long)123)
 					.buyOrderId((long)456)
@@ -178,7 +200,8 @@ public class OrderBookService {
 
 			tradeHistoryService.saveTradeHistory(tradeHistory);
 			log.info("db저장완료");
-			//수량
+
+			// 수량 업데이트
 			incomingOrder.updateQuantity(matchedQuantity);
 			existingOrder.updateQuantity(matchedQuantity);
 
@@ -189,10 +212,9 @@ public class OrderBookService {
 		}
 	}
 
-	private void handleUnmatchedMarketOrder(final Order unmatchedOrder) {
-
-	}
-
+	/**
+	 * 주문장에 주문 추가
+	 */
 	private void addToOrderBook(final TreeMap<BigDecimal, Queue<Order>> orderBook, final Order order) {
 		if (order.getPrice().compareTo(BigDecimal.ZERO) == 0) {
 			log.warn("시장가 주문은 주문장에 추가할 수 없습니다: {}", order);
@@ -201,17 +223,20 @@ public class OrderBookService {
 
 		orderBook.computeIfAbsent(
 				order.getPrice(),
-				k -> new PriorityQueue<>(
-						Comparator.comparing(Order::getTimestamp))
+				k -> new PriorityQueue<>(Comparator.comparing(Order::getTimestamp))
 		).offer(order);
 	}
 
-	// 종목별 주문장 스냅샷 생성
+	/**
+	 * 종목별 주문장 스냅샷 생성
+	 */
 	public OrderSnapshotResponse getSnapshot() {
 		return new OrderSnapshotResponse(companyCode, sellOrders, buyOrders);
 	}
 
-	// 호가창 생성
+	/**
+	 * 호가창 생성
+	 */
 	public OrderBookResponse getBook() {
 		return OrderBookResponse.builder()
 				.companyCode(companyCode)
@@ -220,7 +245,9 @@ public class OrderBookService {
 				.build();
 	}
 
-	// 매도 호가창 정보
+	/**
+	 * 매도 호가창 정보 생성
+	 */
 	private List<PriceLevelDto> createAskLevels() {
 		return this.sellOrders.entrySet().stream()
 				.limit(10)
@@ -230,7 +257,9 @@ public class OrderBookService {
 				).toList();
 	}
 
-	// 매수 호가창 정보
+	/**
+	 * 매수 호가창 정보 생성
+	 */
 	private List<PriceLevelDto> createBidLevels() {
 		return this.buyOrders.entrySet().stream()
 				.limit(10)
@@ -239,13 +268,18 @@ public class OrderBookService {
 				).toList();
 	}
 
+	/**
+	 * 총 주문 수량 계산
+	 */
 	private BigDecimal calculateTotalQuantity(Queue<Order> orders) {
 		return orders.stream()
-				.map(Order::getRemainingQuantity) // remainingQuantity를 스트림으로 변환
+				.map(Order::getRemainingQuantity)
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
 	}
 
-	// 종목별 요약 정보 조회
+	/**
+	 * 종목별 요약 정보 조회
+	 */
 	public OrderSummaryResponse getSummary() {
 		return new OrderSummaryResponse(
 				companyCode,
@@ -254,15 +288,12 @@ public class OrderBookService {
 		);
 	}
 
-	// 주문 수량 분석
+	/**
+	 * 주문 수량 통계 계산
+	 */
 	public Integer getOrderVolumeStats(final TreeMap<BigDecimal, Queue<Order>> orderMap) {
-		int count = 0;
-		for (Queue<Order> orders : orderMap.values()) {
-			for (Order order : orders) {
-				count++;
-			}
-		}
-		return count;
+		return orderMap.values().stream()
+				.mapToInt(Queue::size)
+				.sum();
 	}
-
 }

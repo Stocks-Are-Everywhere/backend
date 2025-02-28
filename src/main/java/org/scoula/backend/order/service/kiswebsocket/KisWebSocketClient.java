@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import org.json.simple.JSONObject;
+import org.scoula.backend.order.controller.response.KisStockResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.service.OrderService;
 import org.scoula.backend.order.service.TradeHistoryService;
@@ -71,7 +72,7 @@ public class KisWebSocketClient {
 					}
 
 					// 실제 주식 데이터 처리
-					final StockData stockData = parseKisData(payload);
+					final KisStockResponse stockData = parseKisData(payload);
 					final TradeHistoryResponse response = TradeHistoryResponse.builder()
 							// .id(1L)
 							.companyCode(stockCode)
@@ -163,7 +164,7 @@ public class KisWebSocketClient {
 		}
 	}
 
-	private StockData parseKisData(String rawData) {
+	private KisStockResponse parseKisData(String rawData) {
 		try {
 			String[] sections = rawData.split("\\|");
 			if (sections.length < 4) {
@@ -172,7 +173,7 @@ public class KisWebSocketClient {
 			}
 
 			String[] fields = sections[3].split("\\^");
-			StockData data = new StockData();
+			KisStockResponse data = new KisStockResponse();
 
 			// 기본 정보 설정
 			try {
