@@ -1,5 +1,8 @@
 package org.scoula.backend.order.domain;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 import org.scoula.backend.global.entity.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -20,12 +23,16 @@ import lombok.extern.slf4j.Slf4j;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Slf4j
-public class OrderHistory extends BaseEntity {
+public class TradeHistory extends BaseEntity {
 
+	//TODO : Entitiy에 companycode 추가
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	@Column(name = "order_history_id")
+	@Column(name = "trade_history_id")
 	private Long id;
+
+	@Column(nullable = false)
+	private String companyCode;
 
 	@Column(nullable = false)
 	private Long sellOrderId;
@@ -33,10 +40,13 @@ public class OrderHistory extends BaseEntity {
 	@Column(nullable = false)
 	private Long buyOrderId;
 
-	@Column(nullable = false)
-	private Integer quantity;
+	@Column(nullable = false, precision = 10, scale = 0)
+	private BigDecimal price;    // 체결 가격
+
+	@Column(nullable = false, precision = 10, scale = 0)
+	private BigDecimal quantity; // 체결 수량
 
 	@Column(nullable = false)
-	private Integer price;
+	private LocalDateTime tradeTime; // 체결 시간
 
 }

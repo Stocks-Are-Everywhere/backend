@@ -2,6 +2,9 @@ package org.scoula.backend.order.domain;
 
 import static jakarta.persistence.FetchType.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 import org.scoula.backend.global.entity.BaseEntity;
 import org.scoula.backend.member.domain.Account;
 
@@ -43,21 +46,28 @@ public class Order extends BaseEntity {
 	@Column(nullable = false)
 	private Type type;
 
-	@Column(nullable = false)
-	private Integer totalQuantity;
+	@Column(nullable = false, precision = 10, scale = 0)
+	private BigDecimal totalQuantity;
 
-	@Column(nullable = false)
-	private Integer remainingQuantity;
+	@Column(nullable = false, precision = 10, scale = 0)
+	private BigDecimal remainingQuantity;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private OrderStatus status;
 
-	@Column(nullable = false)
-	private Integer price;
+	@Column(nullable = false, precision = 10, scale = 0)
+	private BigDecimal price;
 
 	@ManyToOne(fetch = LAZY)
-	@JoinColumn(name = "account_id", nullable = false)
-	private Account account;
+	@JoinColumn(name = "account_id", nullable = true)
+	private Account account = null;
 
+	@Column(nullable = false)
+	private LocalDateTime timestamp;
+
+	// BigDecimal는 불변 객체 입니다.
+	public void updateQuantity(final BigDecimal quantity) {
+		this.remainingQuantity = this.remainingQuantity.subtract(quantity);
+	}
 }

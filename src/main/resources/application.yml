@@ -2,6 +2,9 @@ spring:
   application:
     name: onseju
 
+  config:
+    import: classpath:properties/env.properties
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL}
@@ -19,6 +22,8 @@ spring:
   logging.level:
     org.hibernate.SQL: debug
     org.hibernate.type: trace
+    # WebSocket 디버그
+    org.springframework.web.socket: DEBUG
 
   ki:
     appKey: ${KOREAINVEST_CLIENT_ID}
@@ -43,3 +48,8 @@ google:
 chrome:
   extension:
     id: ${CHROME_EXTENSION_ID}
+
+webSocket:
+  server:
+    websocketKey: ${KOREAINVEST_WEBSOCKET_KEY}
+    url: ${KOREAINVEST_API_URL}
