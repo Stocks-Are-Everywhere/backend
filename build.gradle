@@ -24,7 +24,6 @@ repositories {
 }
 
 dependencies {
-
     // jwt: Woo
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
@@ -36,6 +35,15 @@ dependencies {
     // Spring Security: Woo
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // Websocket
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+    // Json parsing
+    implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+
+    // Swagger-ui
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.0.2'
 
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-web'
