@@ -8,6 +8,8 @@ import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
 import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
+import org.scoula.backend.member.domain.Company;
+import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
@@ -16,6 +18,7 @@ import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.dto.OrderDto;
 import org.scoula.backend.order.service.exception.MatchingException;
+import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
 import org.scoula.backend.order.service.validator.OrderValidator;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -36,6 +39,8 @@ public class OrderService {
 
 	private final TradeHistoryService tradeHistoryService;
 
+	private final CompanyRepositoryImpl companyRepository;
+
 	private final AccountRepositoryImpl accountRepository;
 
 	private final MemberRepositoryImpl memberRepository;
@@ -48,10 +53,23 @@ public class OrderService {
 		final OrderValidator validator = OrderValidator.getUnitByPrice(price);
 		validator.isValidPrice(price);
 
+		// 종가 기준 검증
+		validateClosingPrice(price, request.companyCode());
+
 		final Order order = createOrder(request, username);
 
 		// 주문 처리
 		processOrder(order);
+	}
+
+	// 종가 기준 가격 검증
+	private void validateClosingPrice(final BigDecimal price, final String companyCode) {
+		final Company company = companyRepository.findByIsuSrtCd(companyCode)
+				.orElseThrow(PriceOutOfRangeException::new);
+
+		if (!company.isWithinClosingPriceRange(price)) {
+			throw new PriceOutOfRangeException();
+		}
 	}
 
 	private Order createOrder(final OrderRequest request, final String username) {
