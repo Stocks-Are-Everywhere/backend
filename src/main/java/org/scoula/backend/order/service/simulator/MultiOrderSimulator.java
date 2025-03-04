@@ -53,7 +53,7 @@ public class MultiOrderSimulator {
 			try {
 				// 주문 생성 및 처리
 				final OrderRequest request = createRandomOrderRequest(random);
-				orderService.placeOrder(request);
+				orderService.placeOrder(request, "username");
 
 				// 랜덤 시간 간격으로 대기
 				final int waitTime = random.nextInt(MAX_INTERVAL - MIN_INTERVAL) + MIN_INTERVAL;

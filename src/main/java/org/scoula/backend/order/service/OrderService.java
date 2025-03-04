@@ -4,6 +4,10 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.scoula.backend.member.domain.Account;
+import org.scoula.backend.member.domain.Member;
+import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
+import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
@@ -31,14 +35,20 @@ public class OrderService {
 
 	private final TradeHistoryService tradeHistoryService;
 
+	private final AccountRepositoryImpl accountRepository;
+
+	private final MemberRepositoryImpl memberRepository;
+
 	// 지정가 주문
-	public void placeOrder(final OrderRequest request) throws MatchingException {
+	public void placeOrder(final OrderRequest request, final String username) throws MatchingException {
 		// 지정가 주문 가격 견적 유효성 검증
 		final BigDecimal price = request.price();
 		final OrderValidator validator = OrderValidator.getUnitByPrice(price);
 		validator.isValidPrice(price);
 
-		final Order order = new OrderDto(request).to();
+		final Member member = memberRepository.getByUsername(username);
+		final Account account = accountRepository.getByMemberId(member.getId());
+		final Order order = new OrderDto(request).to(account);
 
 		// 주문 처리
 		processOrder(order);

@@ -2,6 +2,8 @@ package org.scoula.backend.order.controller;
 
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
+import org.scoula.backend.global.security.UserDetailsImpl;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
@@ -10,6 +12,7 @@ import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.service.OrderService;
 import org.scoula.backend.order.service.exception.MatchingException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,6 +24,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/order")
 @Tag(name = "주문 API", description = "주문 생성 및 채결 기록을 조회하는 컨트롤러 입니다.")
@@ -31,8 +35,11 @@ public class OrderController {
 
 	@Operation(summary = "주문 생성")
 	@PostMapping
-	public ResponseEntity<Void> received(@RequestBody final OrderRequest request) throws MatchingException {
-		orderService.placeOrder(request);
+	public ResponseEntity<Void> received(
+			@RequestBody final OrderRequest request,
+			@AuthenticationPrincipal final UserDetailsImpl user
+	) throws MatchingException {
+		orderService.placeOrder(request, user.getUsername());
 		return ResponseEntity.ok().build();
 	}
 
