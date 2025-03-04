@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.scoula.backend.order.OrderConstant;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 @Entity
 @Getter
@@ -70,11 +71,17 @@ public class Company {
     private BigDecimal closingPrice; // 종가
 
     public boolean isWithinClosingPriceRange(final BigDecimal price) {
-        final BigDecimal lowerBound
-                = closingPrice.multiply(BigDecimal.valueOf((100 - OrderConstant.CLOSING_PRICE_LIMIT.getValue()) / 100));
-        final BigDecimal upperBound
-                = closingPrice.multiply(BigDecimal.valueOf((100 + OrderConstant.CLOSING_PRICE_LIMIT.getValue()) / 100));
+        final BigDecimal percentageDivisor = BigDecimal.valueOf(100);
+        final BigDecimal priceLimit = BigDecimal.valueOf(OrderConstant.CLOSING_PRICE_LIMIT.getValue());
 
-        return 0 <= price.compareTo(lowerBound) && price.compareTo(upperBound) <= 0;
+        final BigDecimal lowerBound = calculatePriceLimit(percentageDivisor, priceLimit.negate());
+        final BigDecimal upperBound = calculatePriceLimit(percentageDivisor, priceLimit);
+
+        return price.compareTo(lowerBound) >= 0 && price.compareTo(upperBound) <= 0;
+    }
+
+    private BigDecimal calculatePriceLimit(BigDecimal percentageDivisor, BigDecimal priceLimit) {
+        return closingPrice.multiply(BigDecimal.valueOf(100).add(priceLimit))
+                .divide(percentageDivisor, RoundingMode.HALF_UP);
     }
 }
