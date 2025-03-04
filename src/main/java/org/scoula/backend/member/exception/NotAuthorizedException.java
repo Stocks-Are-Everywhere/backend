@@ -1,13 +1,10 @@
 package org.scoula.backend.member.exception;
 
-import lombok.Getter;
+import org.scoula.backend.global.exception.BaseException;
 import org.springframework.http.HttpStatus;
 
-@Getter
-public class NotAuthorizedException extends IllegalArgumentException{
-    private final HttpStatus status;
+public class NotAuthorizedException extends BaseException {
     public NotAuthorizedException(String message) {
-        super(message);
-        this.status = HttpStatus.BAD_REQUEST;
+        super(message, HttpStatus.FORBIDDEN);
     }
 }
