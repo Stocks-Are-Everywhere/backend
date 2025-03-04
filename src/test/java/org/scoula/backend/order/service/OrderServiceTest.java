@@ -6,8 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.scoula.backend.member.exception.AccountNotFound;
-import org.scoula.backend.member.exception.MemberNotFound;
+import org.scoula.backend.member.exception.MemberNotFoundException;
 import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
 import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
 import org.scoula.backend.order.controller.request.OrderRequest;
@@ -39,12 +38,12 @@ class OrderServiceTest {
     @DisplayName("입력받은 사용자에 대한 정보가 저장되어있지 않은 경우 예외를 반환한다.")
     void orderFailedWhenMemberNotFound() {
         // given
-        when(memberRepository.getByUsername(any())).thenThrow(MemberNotFound.class);
+        when(memberRepository.getByUsername(any())).thenThrow(MemberNotFoundException.class);
         OrderRequest request = createOrderRequest(Type.BUY, BigDecimal.valueOf(10), BigDecimal.valueOf(1000));
 
         // when, then
         assertThatThrownBy(() -> orderService.placeOrder(request, "username"))
-                .isInstanceOf(MemberNotFound.class);
+                .isInstanceOf(MemberNotFoundException.class);
     }
 
     private OrderRequest createOrderRequest(
