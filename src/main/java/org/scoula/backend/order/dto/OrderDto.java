@@ -12,7 +12,7 @@ import lombok.Builder;
 public record OrderDto(
 		OrderRequest request
 ) {
-	public Order to(Account account) {
+	public Order to(final Account account) {
 		return Order.builder()
 				.companyCode(request.companyCode())
 				.type(request.type())
