@@ -4,6 +4,10 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.scoula.backend.member.domain.Account;
+import org.scoula.backend.member.domain.Member;
+import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
+import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
 import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
 import org.scoula.backend.order.controller.request.OrderRequest;
@@ -21,6 +25,7 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -36,8 +41,13 @@ public class OrderService {
 
 	private final CompanyRepositoryImpl companyRepository;
 
+	private final AccountRepositoryImpl accountRepository;
+
+	private final MemberRepositoryImpl memberRepository;
+
 	// 지정가 주문
-	public void placeOrder(final OrderRequest request) throws MatchingException {
+	@Transactional
+	public void placeOrder(final OrderRequest request, final String username) throws MatchingException {
 		// 지정가 주문 가격 견적 유효성 검증
 		final BigDecimal price = request.price();
 		final OrderValidator validator = OrderValidator.getUnitByPrice(price);
@@ -46,7 +56,7 @@ public class OrderService {
 		// 종가 기준 검증
 		validateClosingPrice(price, request.companyCode());
 
-		final Order order = new OrderDto(request).to();
+		final Order order = createOrder(request, username);
 
 		// 주문 처리
 		processOrder(order);
@@ -60,6 +70,12 @@ public class OrderService {
 		if (!company.isWithinClosingPriceRange(price)) {
 			throw new PriceOutOfRangeException();
 		}
+	}
+
+	private Order createOrder(final OrderRequest request, final String username) {
+		final Member member = memberRepository.getByUsername(username);
+		final Account account = accountRepository.getByMemberId(member.getId());
+		return new OrderDto(request).to(account);
 	}
 
 	// 주문 처리

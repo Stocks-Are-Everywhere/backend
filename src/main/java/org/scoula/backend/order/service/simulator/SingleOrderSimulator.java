@@ -47,7 +47,7 @@ public class SingleOrderSimulator {
 			// 주문 생성 및 처리
 			final OrderRequest request = createRandomOrderRequest();
 			log.info(request.price().toPlainString());
-			orderService.placeOrder(request);
+			orderService.placeOrder(request, "username");
 
 		} catch (Exception e) {
 			log.error("Error generating order", e);
