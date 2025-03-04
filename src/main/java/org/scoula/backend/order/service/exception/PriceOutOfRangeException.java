@@ -1,8 +1,11 @@
 package org.scoula.backend.order.service.exception;
 
-public class PriceOutOfRangeException extends RuntimeException {
+import org.scoula.backend.global.exception.BaseException;
+import org.springframework.http.HttpStatus;
+
+public class PriceOutOfRangeException extends BaseException {
 
     public PriceOutOfRangeException() {
-        super("주문 가격은 종가의 30% 범위 내에서만 설정할 수 있습니다");
+        super("주문 가격은 종가의 30% 범위 내에서만 설정할 수 있습니다", HttpStatus.BAD_REQUEST);
     }
 }
