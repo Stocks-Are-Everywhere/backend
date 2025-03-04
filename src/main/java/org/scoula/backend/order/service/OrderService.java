@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -40,18 +41,23 @@ public class OrderService {
 	private final MemberRepositoryImpl memberRepository;
 
 	// 지정가 주문
+	@Transactional
 	public void placeOrder(final OrderRequest request, final String username) throws MatchingException {
 		// 지정가 주문 가격 견적 유효성 검증
 		final BigDecimal price = request.price();
 		final OrderValidator validator = OrderValidator.getUnitByPrice(price);
 		validator.isValidPrice(price);
 
-		final Member member = memberRepository.getByUsername(username);
-		final Account account = accountRepository.getByMemberId(member.getId());
-		final Order order = new OrderDto(request).to(account);
+		final Order order = createOrder(request, username);
 
 		// 주문 처리
 		processOrder(order);
+	}
+
+	private Order createOrder(final OrderRequest request, final String username) {
+		final Member member = memberRepository.getByUsername(username);
+		final Account account = accountRepository.getByMemberId(member.getId());
+		return new OrderDto(request).to(account);
 	}
 
 	// 주문 처리
