@@ -15,6 +15,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
+import org.scoula.backend.order.OrderConstant;
+
+import java.math.BigDecimal;
 
 @Entity
 @Getter
@@ -63,4 +66,15 @@ public class Company {
 
     @Column(name = "list_shrs", nullable = false)
     private String listShrs; // 상장주식수 (LIST_SHRS)
+
+    private BigDecimal closingPrice; // 종가
+
+    public boolean isWithinClosingPriceRange(final BigDecimal price) {
+        final BigDecimal lowerBound
+                = closingPrice.multiply(BigDecimal.valueOf((100 - OrderConstant.CLOSING_PRICE_LIMIT.getValue()) / 100));
+        final BigDecimal upperBound
+                = closingPrice.multiply(BigDecimal.valueOf((100 + OrderConstant.CLOSING_PRICE_LIMIT.getValue()) / 100));
+
+        return 0 <= price.compareTo(lowerBound) && price.compareTo(upperBound) <= 0;
+    }
 }
