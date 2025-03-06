@@ -223,8 +223,11 @@ public class OrderBookService {
 		}
 
 		orderBook.computeIfAbsent(
-			order.getPrice(),
-			k -> new PriorityQueue<>(Comparator.comparing(Order::getTimestamp))
+				order.getPrice(),
+				k -> new PriorityQueue<>(
+						Comparator.comparing(Order::getTimestamp)
+								.thenComparing(Order::getTotalQuantity, Comparator.reverseOrder())
+				)
 		).offer(order);
 	}
 
