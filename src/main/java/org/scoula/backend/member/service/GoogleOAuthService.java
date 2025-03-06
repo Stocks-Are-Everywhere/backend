@@ -5,8 +5,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.scoula.backend.global.jwt.JwtUtil;
 import org.scoula.backend.member.controller.response.LoginResponseDto;
+import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.domain.MemberRoleEnum;
+import org.scoula.backend.member.repository.AccountJpaRepository;
 import org.scoula.backend.member.repository.MemberJpaRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -15,12 +17,14 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.URI;
 
 @Service
 @RequiredArgsConstructor
 public class GoogleOAuthService {
     private final MemberJpaRepository memberRepository;
+    private final AccountJpaRepository accountRepository;
     private final JwtUtil jwtUtil;
 
     private final RestTemplate restTemplate = new RestTemplate();
@@ -50,7 +54,7 @@ public class GoogleOAuthService {
         String googleId = userInfo.get("sub").asText();  // Google ID
         String username = email.split("@")[0]; // Extract username from email
 
-        // Step 3: Find or Register User
+        // Step 3: Find or Register User and Account
         Member user = memberRepository.findByEmail(email)
                 .orElseGet(() -> {
                     // Create new user if not exists
@@ -60,6 +64,7 @@ public class GoogleOAuthService {
                             .googleId(googleId)
                             .role(MemberRoleEnum.USER)
                             .build();
+                    newUser.createAccount();
                     return memberRepository.save(newUser);
                 });
 
