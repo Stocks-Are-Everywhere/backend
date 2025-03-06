@@ -19,6 +19,7 @@ import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.PriceLevelDto;
 import org.scoula.backend.order.service.exception.MatchingException;
+import org.springframework.stereotype.Service;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
  * 개별 종목의 주문장
  */
 @Slf4j
+@Service
 public class OrderBookService {
 	// 종목 번호
 	private final String companyCode;
@@ -182,21 +184,21 @@ public class OrderBookService {
 	 */
 	private void matchOrders(final Queue<Order> existingOrders, final Order incomingOrder) {
 		while (!existingOrders.isEmpty() &&
-				incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
+			incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			final Order existingOrder = existingOrders.peek();
 
 			final BigDecimal matchedQuantity = incomingOrder.getRemainingQuantity()
-					.min(existingOrder.getRemainingQuantity());
+				.min(existingOrder.getRemainingQuantity());
 
 			// 거래 내역 생성 및 저장
 			TradeHistoryResponse tradeHistory = TradeHistoryResponse.builder()
-					.companyCode(existingOrder.getCompanyCode())
-					.sellOrderId((long)123)
-					.buyOrderId((long)456)
-					.quantity(matchedQuantity)
-					.price(existingOrder.getPrice())
-					.tradeTime(LocalDateTime.now())
-					.build();
+				.companyCode(existingOrder.getCompanyCode())
+				.sellOrderId((long)123)
+				.buyOrderId((long)456)
+				.quantity(matchedQuantity)
+				.price(existingOrder.getPrice())
+				.tradeTime(LocalDateTime.now())
+				.build();
 
 			tradeHistoryService.saveTradeHistory(tradeHistory);
 			log.info("db저장완료");
@@ -222,8 +224,8 @@ public class OrderBookService {
 		}
 
 		orderBook.computeIfAbsent(
-				order.getPrice(),
-				k -> new PriorityQueue<>(Comparator.comparing(Order::getTimestamp))
+			order.getPrice(),
+			k -> new PriorityQueue<>(Comparator.comparing(Order::getTimestamp))
 		).offer(order);
 	}
 
@@ -239,10 +241,10 @@ public class OrderBookService {
 	 */
 	public OrderBookResponse getBook() {
 		return OrderBookResponse.builder()
-				.companyCode(companyCode)
-				.sellLevels(createAskLevels())
-				.buyLevels(createBidLevels())
-				.build();
+			.companyCode(companyCode)
+			.sellLevels(createAskLevels())
+			.buyLevels(createBidLevels())
+			.build();
 	}
 
 	/**
@@ -250,11 +252,11 @@ public class OrderBookService {
 	 */
 	private List<PriceLevelDto> createAskLevels() {
 		return this.sellOrders.entrySet().stream()
-				.limit(10)
-				.sorted(Map.Entry.<BigDecimal, Queue<Order>>comparingByKey().reversed()) // 역순 정렬
-				.map(entry -> new PriceLevelDto(
-						entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
-				).toList();
+			.limit(10)
+			.sorted(Map.Entry.<BigDecimal, Queue<Order>>comparingByKey().reversed()) // 역순 정렬
+			.map(entry -> new PriceLevelDto(
+				entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
+			).toList();
 	}
 
 	/**
@@ -262,10 +264,10 @@ public class OrderBookService {
 	 */
 	private List<PriceLevelDto> createBidLevels() {
 		return this.buyOrders.entrySet().stream()
-				.limit(10)
-				.map(entry -> new PriceLevelDto(
-						entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
-				).toList();
+			.limit(10)
+			.map(entry -> new PriceLevelDto(
+				entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
+			).toList();
 	}
 
 	/**
@@ -273,8 +275,8 @@ public class OrderBookService {
 	 */
 	private BigDecimal calculateTotalQuantity(Queue<Order> orders) {
 		return orders.stream()
-				.map(Order::getRemainingQuantity)
-				.reduce(BigDecimal.ZERO, BigDecimal::add);
+			.map(Order::getRemainingQuantity)
+			.reduce(BigDecimal.ZERO, BigDecimal::add);
 	}
 
 	/**
@@ -282,9 +284,9 @@ public class OrderBookService {
 	 */
 	public OrderSummaryResponse getSummary() {
 		return new OrderSummaryResponse(
-				companyCode,
-				getOrderVolumeStats(sellOrders),
-				getOrderVolumeStats(buyOrders)
+			companyCode,
+			getOrderVolumeStats(sellOrders),
+			getOrderVolumeStats(buyOrders)
 		);
 	}
 
@@ -293,7 +295,7 @@ public class OrderBookService {
 	 */
 	public Integer getOrderVolumeStats(final TreeMap<BigDecimal, Queue<Order>> orderMap) {
 		return orderMap.values().stream()
-				.mapToInt(Queue::size)
-				.sum();
+			.mapToInt(Queue::size)
+			.sum();
 	}
 }

@@ -1,5 +1,10 @@
 package org.scoula.backend.member.domain;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+import org.scoula.backend.order.OrderConstant;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -58,4 +63,20 @@ public class Company {
 	@Column(name = "list_shrs", nullable = false)
 	private String listShrs; // 상장주식수 (LIST_SHRS)
 
+	private BigDecimal closingPrice; // 전일 종가
+
+	public boolean isWithinClosingPriceRange(final BigDecimal price) {
+		final BigDecimal percentageDivisor = new BigDecimal(100);
+		final BigDecimal priceLimit = BigDecimal.valueOf(OrderConstant.CLOSING_PRICE_LIMIT.getValue());
+
+		final BigDecimal lowerBound = calculatePriceLimit(percentageDivisor, priceLimit.negate());
+		final BigDecimal upperBound = calculatePriceLimit(percentageDivisor, priceLimit);
+
+		return price.compareTo(lowerBound) >= 0 && price.compareTo(upperBound) <= 0;
+	}
+
+	private BigDecimal calculatePriceLimit(BigDecimal percentageDivisor, BigDecimal priceLimit) {
+		return closingPrice.multiply(new BigDecimal(100).add(priceLimit))
+			.divide(percentageDivisor, RoundingMode.HALF_UP);
+	}
 }
