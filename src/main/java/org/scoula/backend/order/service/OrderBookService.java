@@ -19,7 +19,6 @@ import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.PriceLevelDto;
 import org.scoula.backend.order.service.exception.MatchingException;
-import org.springframework.stereotype.Service;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,9 +26,9 @@ import lombok.extern.slf4j.Slf4j;
  * 개별 종목의 주문장
  */
 @Slf4j
-@Service
 public class OrderBookService {
 	// 종목 번호
+
 	private final String companyCode;
 	// 매도 주문: 낮은 가격 우선
 	private final TreeMap<BigDecimal, Queue<Order>> sellOrders = new TreeMap<>();
