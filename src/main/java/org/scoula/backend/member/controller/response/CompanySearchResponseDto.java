@@ -1,7 +1,9 @@
-package org.scoula.backend.member.dto;
+package org.scoula.backend.member.controller.response;
 
 import org.scoula.backend.member.domain.Company;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -9,7 +11,8 @@ import lombok.Getter;
  * 회사 검색 결과를 담는 DTO
  */
 @Getter
-@Builder
+@Builder(access = AccessLevel.PUBLIC)
+@AllArgsConstructor(access = AccessLevel.PUBLIC)
 public class CompanySearchResponseDto {
 
 	private final String isuNm;      // 한글 종목명

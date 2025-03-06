@@ -10,4 +10,5 @@ public class OrderSummaryResponse {
 	private final String companyCode;
 	private final Integer sellCount;
 	private final Integer buyCount;
+
 }
