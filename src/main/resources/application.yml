@@ -53,3 +53,9 @@ webSocket:
   server:
     websocketKey: ${KOREAINVEST_WEBSOCKET_KEY}
     url: ${KOREAINVEST_API_URL}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus
