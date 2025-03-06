@@ -2,6 +2,8 @@ package org.scoula.backend.member.domain;
 
 import static jakarta.persistence.CascadeType.*;
 
+import java.math.BigDecimal;
+
 import org.scoula.backend.global.entity.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -57,6 +59,10 @@ public class Member extends BaseEntity {
 
 	public void createAccount() {
 		this.account = new Account(this);
+	}
+
+	public BigDecimal getMemberBalance() {
+		return this.account.getBalance();
 	}
 
 	private String parseUsernameFromEmail(String email) {
