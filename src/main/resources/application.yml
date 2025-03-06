@@ -2,18 +2,33 @@ spring:
   application:
     name: onseju
 
+  config:
+    import: classpath:env.properties
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+    hikari:
+      max-lifetime: 180000 # 3분 (MySQL wait_timeout보다 짧게 설정)
+      idle-timeout: 10000  # 10초 (유휴 상태에서 연결을 유지하는 시간)
+      validation-timeout: 3000 # 3초 (유효성 검사 대기 시간)
+      connection-timeout: 30000 # 30초 (새 연결 생성 대기 시간)
+      connection-init-sql: SET SESSION wait_timeout=600
+
 
   jpa:
     hibernate.ddl-auto: create
     show-sql: true
     properties:
+      hibernate.criteria.literal_handling_mode: BIND
       hibernate:
+        connection.CharSet: UTF-8
+        connection.characterEncoding: UTF-8
+        connection.useUnicode: true
         format_sql: true
+
     database-platform: org.hibernate.dialect.MySQL8Dialect
 
   logging.level:
@@ -50,3 +65,11 @@ webSocket:
   server:
     websocketKey: ${KOREAINVEST_WEBSOCKET_KEY}
     url: ${KOREAINVEST_API_URL}
+
+server:
+  servlet:
+    encoding:
+      charset: UTF-8       # 요청 및 응답의 기본 문자셋 설정
+      enabled: true        # 서블릿 인코딩 활성화
+      force: true          # 요청과 응답 모두 UTF-8 강제 적용
+      force-response: true # 응답에 대해 UTF-8 강제 적용 (추가적인 안전장치)
