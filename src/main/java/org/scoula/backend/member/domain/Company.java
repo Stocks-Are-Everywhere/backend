@@ -1,11 +1,7 @@
 package org.scoula.backend.member.domain;
 
-import org.scoula.backend.global.entity.BaseEntity;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -15,6 +11,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
+import org.scoula.backend.order.OrderConstant;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 @Entity
 @Getter
@@ -63,4 +63,21 @@ public class Company {
 
     @Column(name = "list_shrs", nullable = false)
     private String listShrs; // 상장주식수 (LIST_SHRS)
+
+    private BigDecimal closingPrice; // 전일 종가
+
+    public boolean isWithinClosingPriceRange(final BigDecimal price) {
+        final BigDecimal percentageDivisor = new BigDecimal(100);
+        final BigDecimal priceLimit = BigDecimal.valueOf(OrderConstant.CLOSING_PRICE_LIMIT.getValue());
+
+        final BigDecimal lowerBound = calculatePriceLimit(percentageDivisor, priceLimit.negate());
+        final BigDecimal upperBound = calculatePriceLimit(percentageDivisor, priceLimit);
+
+        return price.compareTo(lowerBound) >= 0 && price.compareTo(upperBound) <= 0;
+    }
+
+    private BigDecimal calculatePriceLimit(BigDecimal percentageDivisor, BigDecimal priceLimit) {
+        return closingPrice.multiply(new BigDecimal(100).add(priceLimit))
+                .divide(percentageDivisor, RoundingMode.HALF_UP);
+    }
 }

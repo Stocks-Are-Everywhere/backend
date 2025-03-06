@@ -1,7 +1,10 @@
 package org.scoula.backend.order.service.exception;
 
-public class OrderPriceQuotationException extends RuntimeException {
+import org.scoula.backend.global.exception.BaseException;
+import org.springframework.http.HttpStatus;
+
+public class OrderPriceQuotationException extends BaseException {
 	public OrderPriceQuotationException(final String message) {
-		super(message);
+		super(message, HttpStatus.INTERNAL_SERVER_ERROR);
 	}
 }
