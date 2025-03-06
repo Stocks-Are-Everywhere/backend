@@ -37,7 +37,7 @@ public class Account extends BaseEntity {
 	@Column(nullable = false)
 	private BigDecimal balance;
 
-	@OneToOne(fetch = EAGER)
+	@OneToOne(fetch = LAZY)
 	@JoinColumn(name = "member_id", nullable = false)
 	private Member member;
 
