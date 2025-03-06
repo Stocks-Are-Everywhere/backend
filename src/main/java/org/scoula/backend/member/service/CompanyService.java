@@ -3,8 +3,7 @@ package org.scoula.backend.member.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.scoula.backend.member.dto.CompanySearchResponseDto;
-import org.scoula.backend.member.repository.CompanyJpaRepository;
+import org.scoula.backend.member.controller.response.CompanySearchResponseDto;
 import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
 import org.springframework.stereotype.Service;
 
@@ -15,12 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 public class CompanyService {
 
 	private final CompanyRepositoryImpl companyRepositoryImpl;
-	private final CompanyJpaRepository companyJpaRepository;
 
-	public CompanyService(final CompanyRepositoryImpl companyRepositoryImpl,
-		final CompanyJpaRepository companyJpaRepository) {
+	public CompanyService(final CompanyRepositoryImpl companyRepositoryImpl) {
 		this.companyRepositoryImpl = companyRepositoryImpl;
-		this.companyJpaRepository = companyJpaRepository;
 	}
 
 	/**

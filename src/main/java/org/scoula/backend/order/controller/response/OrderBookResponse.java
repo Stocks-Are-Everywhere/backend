@@ -8,8 +8,8 @@ import lombok.Builder;
 
 @Builder
 public record OrderBookResponse(
-		String companyCode,
-		List<PriceLevelDto> sellLevels,
-		List<PriceLevelDto> buyLevels
+	String companyCode,
+	List<PriceLevelDto> sellLevels,
+	List<PriceLevelDto> buyLevels
 ) {
 }

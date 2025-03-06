@@ -45,26 +45,4 @@ public class CompanyDto {
 		);
 	}
 
-	/**
-	 * DTO -> Entity 변환 메서드
-	 *
-	 * @return 변환된 Company 엔티티 객체
-	 */
-	public Company toEntity() {
-		return new Company(
-			null, // id는 자동 생성됨
-			this.isuCd,
-			this.isuSrtCd,
-			this.isuNm,
-			this.isuAbbrv,
-			this.isuEngNm,
-			this.listDd,
-			this.mktTpNm,
-			this.secugrpNm,
-			this.sectTpNm,
-			this.kindStkcertTpNm,
-			this.parval,
-			this.listShrs
-		);
-	}
 }

@@ -18,16 +18,6 @@ public class CompanyRepositoryImpl {
 	private final CompanyJpaRepository companyJpaRepository;
 
 	/**
-	 * 단축코드로 회사를 조회하는 메서드
-	 *
-	 * @param tickerCode 단축코드
-	 * @return 조회된 회사 객체
-	 */
-	public Optional<Company> findByIsuSrtCd(final String tickerCode) {
-		return companyJpaRepository.findByIsuSrtCd(tickerCode);
-	}
-
-	/**
 	 * 이름 또는 단축코드를 포함하는 회사 목록을 조회하는 메서드
 	 *
 	 * @param query 검색어
@@ -36,5 +26,17 @@ public class CompanyRepositoryImpl {
 	public List<Company> findByIsuNmContainingOrIsuSrtCdContaining(final String query) {
 		List<Company> companies = companyJpaRepository.findByIsuNmContainingOrIsuAbbrvContaining(query, query);
 		return companies;
+	}
+
+	public List<Company> findAll() {
+		return companyJpaRepository.findAll();
+	}
+
+	public void save(Company company) {
+		//현재는 사용 X
+	}
+
+	public Optional<Company> findByIsuSrtCd(final String isuSrt) {
+		return companyJpaRepository.findByIsuSrtCd(isuSrt);
 	}
 }
