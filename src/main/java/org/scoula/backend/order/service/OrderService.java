@@ -4,6 +4,12 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.scoula.backend.member.domain.Account;
+import org.scoula.backend.member.domain.Member;
+import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
+import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
+import org.scoula.backend.member.domain.Company;
+import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
@@ -11,13 +17,16 @@ import org.scoula.backend.order.controller.response.OrderSummaryResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.dto.OrderDto;
+import org.scoula.backend.order.service.exception.CompanyNotFound;
 import org.scoula.backend.order.service.exception.MatchingException;
+import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
 import org.scoula.backend.order.service.validator.OrderValidator;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -30,25 +39,46 @@ public class OrderService {
 	private final SimpMessagingTemplate messagingTemplate;
 
 	private final TradeHistoryService tradeHistoryService;
-	
-	/**
-	 * 지정가 주문 - 동기 방식
-	 */
-	public void placeOrder(final OrderRequest request) throws MatchingException {
+
+	private final CompanyRepositoryImpl companyRepository;
+
+	private final AccountRepositoryImpl accountRepository;
+
+	private final MemberRepositoryImpl memberRepository;
+
+	// 지정가 주문
+	@Transactional
+	public void placeOrder(final OrderRequest request, final String username) throws MatchingException {
 		// 지정가 주문 가격 견적 유효성 검증
 		final BigDecimal price = request.price();
 		final OrderValidator validator = OrderValidator.getUnitByPrice(price);
 		validator.isValidPrice(price);
 
-		final Order order = new OrderDto(request).to();
+		// 종가 기준 검증
+		validateClosingPrice(price, request.companyCode());
+
+		final Order order = createOrder(request, username);
 
 		// 주문 처리
 		processOrder(order);
 	}
 
-	/**
-	 * 주문 처리 - 동기 방식
-	 */
+	// 종가 기준 가격 검증
+	private void validateClosingPrice(final BigDecimal price, final String companyCode) {
+		final Company company = companyRepository.findByIsuSrtCd(companyCode)
+				.orElseThrow(CompanyNotFound::new);
+
+		if (!company.isWithinClosingPriceRange(price)) {
+			throw new PriceOutOfRangeException();
+		}
+	}
+
+	private Order createOrder(final OrderRequest request, final String username) {
+		final Member member = memberRepository.getByUsername(username);
+		final Account account = accountRepository.getByMemberId(member.getId());
+		return new OrderDto(request).to(account);
+	}
+
 	private void processOrder(final Order order) throws MatchingException {
 		final OrderBookService orderBook = addOrderBook(order.getCompanyCode());
 		orderBook.received(order);

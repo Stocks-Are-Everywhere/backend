@@ -7,11 +7,14 @@ services:
       --default-authentication-plugin=mysql_native_password
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
-      --wait_timeout=30 --interactive_timeout=600
+      --wait_timeout=30
+      --interactive_timeout=600
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: onseju
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_MAX_CONNECTIONS: 200
+      LANG: ko_kr.utf-8
+      LC_ALL: ko_kr.utf-8
     ports:
       - "3306:3306"

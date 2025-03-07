@@ -5,9 +5,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.scoula.backend.global.jwt.JwtUtil;
 import org.scoula.backend.member.controller.response.LoginResponseDto;
+import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.domain.MemberRoleEnum;
+import org.scoula.backend.member.repository.AccountJpaRepository;
 import org.scoula.backend.member.repository.MemberJpaRepository;
+import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
+import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -15,15 +20,15 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.URI;
 
 @Service
-@RequiredArgsConstructor
 public class GoogleOAuthService {
-    private final MemberJpaRepository memberRepository;
+    private final MemberRepositoryImpl memberRepository;
+    private final AccountRepositoryImpl accountRepository;
     private final JwtUtil jwtUtil;
-
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
     @Value("${google.client.id}")
     private String clientId;
@@ -40,6 +45,13 @@ public class GoogleOAuthService {
     @Value("${google.userinfo.uri}")
     private String userInfoUri;
 
+    public GoogleOAuthService(MemberRepositoryImpl memberRepository, AccountRepositoryImpl accountRepository, JwtUtil jwtUtil, RestTemplate restTemplate) {
+        this.memberRepository = memberRepository;
+        this.accountRepository = accountRepository;
+        this.jwtUtil = jwtUtil;
+        this.restTemplate = restTemplate;
+    }
+
     public LoginResponseDto googleLogin(String code, HttpServletResponse response) throws IOException {
         // Step 1: Exchange code for access token
         String accessToken = getAccessToken(code);
@@ -50,7 +62,7 @@ public class GoogleOAuthService {
         String googleId = userInfo.get("sub").asText();  // Google ID
         String username = email.split("@")[0]; // Extract username from email
 
-        // Step 3: Find or Register User
+        // Step 3: Find or Register User and Account
         Member user = memberRepository.findByEmail(email)
                 .orElseGet(() -> {
                     // Create new user if not exists
@@ -60,13 +72,14 @@ public class GoogleOAuthService {
                             .googleId(googleId)
                             .role(MemberRoleEnum.USER)
                             .build();
+                    newUser.createAccount();
                     return memberRepository.save(newUser);
                 });
 
         // Step 4: Generate JWT token
         String jwtToken = jwtUtil.createToken(user.getUsername());
         response.addHeader("Authorization",  jwtToken);
-        return new LoginResponseDto(user.getId(),username);
+        return new LoginResponseDto(user.getId(),username, user.getMemberBalance());
     }
 
     private String getAccessToken(String code) {

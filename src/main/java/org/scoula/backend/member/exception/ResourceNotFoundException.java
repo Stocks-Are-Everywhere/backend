@@ -1,14 +1,10 @@
 package org.scoula.backend.member.exception;
 
-import lombok.Getter;
+import org.scoula.backend.global.exception.BaseException;
 import org.springframework.http.HttpStatus;
 
-@Getter
-public class ResourceNotFoundException extends RuntimeException{
-    private final HttpStatus status;
-
+public class ResourceNotFoundException extends BaseException {
     public ResourceNotFoundException(String message) {
-        super(message);
-        this.status = HttpStatus.BAD_REQUEST;
+        super(message, HttpStatus.NOT_FOUND);
     }
 }

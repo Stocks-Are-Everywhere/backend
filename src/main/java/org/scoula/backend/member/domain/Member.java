@@ -1,5 +1,9 @@
 package org.scoula.backend.member.domain;
 
+import static jakarta.persistence.CascadeType.*;
+
+import java.math.BigDecimal;
+
 import org.scoula.backend.global.entity.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -9,6 +13,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -42,6 +47,9 @@ public class Member extends BaseEntity {
 	@Enumerated(value = EnumType.STRING)
 	private MemberRoleEnum role;
 
+    @OneToOne(mappedBy = "member", cascade = ALL)
+	private Account account;
+
 	public Member(String googleId, String email, MemberRoleEnum role) {
 		this.googleId = googleId;
 		this.email = email;
@@ -49,8 +57,16 @@ public class Member extends BaseEntity {
 		this.role = role != null ? role : MemberRoleEnum.USER;
 	}
 
+	public void createAccount() {
+		this.account = new Account(this);
+	}
+
+	public BigDecimal getMemberBalance() {
+		return this.account.getBalance();
+	}
+
 	private String parseUsernameFromEmail(String email) {
 		return email.substring(0, email.indexOf('@')); // Extract part before '@'
 	}
-
+	
 }

@@ -28,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class OrderBookService {
 	// 종목 번호
+
 	private final String companyCode;
 	// 매도 주문: 낮은 가격 우선
 	private final TreeMap<BigDecimal, Queue<Order>> sellOrders = new TreeMap<>();
@@ -224,11 +225,11 @@ public class OrderBookService {
 	 */
 	private void matchOrders(final Queue<Order> existingOrders, final Order incomingOrder) {
 		while (!existingOrders.isEmpty() &&
-				incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
+			incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			final Order existingOrder = existingOrders.peek();
 
 			final BigDecimal matchedQuantity = incomingOrder.getRemainingQuantity()
-					.min(existingOrder.getRemainingQuantity());
+				.min(existingOrder.getRemainingQuantity());
 
 			// 거래 내역 생성 및 저장
 			final TradeHistoryResponse tradeHistory = TradeHistoryResponse.builder()
@@ -265,7 +266,10 @@ public class OrderBookService {
 
 		orderBook.computeIfAbsent(
 				order.getPrice(),
-				k -> new PriorityQueue<>(Comparator.comparing(Order::getTimestamp))
+				k -> new PriorityQueue<>(
+						Comparator.comparing(Order::getTimestamp)
+								.thenComparing(Order::getTotalQuantity, Comparator.reverseOrder())
+				)
 		).offer(order);
 	}
 
@@ -277,12 +281,46 @@ public class OrderBookService {
 	}
 
 	/**
+	 * 호가창 생성
+	 */
+	public OrderBookResponse getBook() {
+		return OrderBookResponse.builder()
+			.companyCode(companyCode)
+			.sellLevels(createAskLevels())
+			.buyLevels(createBidLevels())
+			.build();
+	}
+
+	/**
+	 * 매도 호가창 정보 생성
+	 */
+	private List<PriceLevelDto> createAskLevels() {
+		return this.sellOrders.entrySet().stream()
+			.limit(10)
+			.sorted(Map.Entry.<BigDecimal, Queue<Order>>comparingByKey().reversed()) // 역순 정렬
+			.map(entry -> new PriceLevelDto(
+				entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
+			).toList();
+	}
+
+	/**
+	 * 매수 호가창 정보 생성
+	 */
+	private List<PriceLevelDto> createBidLevels() {
+		return this.buyOrders.entrySet().stream()
+			.limit(10)
+			.map(entry -> new PriceLevelDto(
+				entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
+			).toList();
+	}
+
+	/**
 	 * 총 주문 수량 계산
 	 */
 	private BigDecimal calculateTotalQuantity(Queue<Order> orders) {
 		return orders.stream()
-				.map(Order::getRemainingQuantity)
-				.reduce(BigDecimal.ZERO, BigDecimal::add);
+			.map(Order::getRemainingQuantity)
+			.reduce(BigDecimal.ZERO, BigDecimal::add);
 	}
 
 	/**
@@ -290,9 +328,9 @@ public class OrderBookService {
 	 */
 	public OrderSummaryResponse getSummary() {
 		return new OrderSummaryResponse(
-				companyCode,
-				getOrderVolumeStats(sellOrders),
-				getOrderVolumeStats(buyOrders)
+			companyCode,
+			getOrderVolumeStats(sellOrders),
+			getOrderVolumeStats(buyOrders)
 		);
 	}
 
@@ -301,7 +339,7 @@ public class OrderBookService {
 	 */
 	public Integer getOrderVolumeStats(final TreeMap<BigDecimal, Queue<Order>> orderMap) {
 		return orderMap.values().stream()
-				.mapToInt(Queue::size)
-				.sum();
+			.mapToInt(Queue::size)
+			.sum();
 	}
 }
