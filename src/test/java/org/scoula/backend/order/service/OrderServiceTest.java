@@ -19,6 +19,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.scoula.backend.member.domain.Company;
+import org.scoula.backend.member.domain.Member;
+import org.scoula.backend.member.domain.MemberRoleEnum;
 import org.scoula.backend.member.exception.MemberNotFoundException;
 import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
 import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
@@ -53,6 +55,9 @@ class OrderServiceTest {
 	@Mock
 	TradeHistoryService tradeHistoryService;
 
+	private final Company company = Company.builder().isuNm("AAPL").isuCd("AAPL").closingPrice(new BigDecimal("150.00")).build();
+	private final Member member = Member.builder().id(1L).username("username").googleId("googleId").role(MemberRoleEnum.USER).build();
+
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
@@ -73,6 +78,8 @@ class OrderServiceTest {
 			.price(new BigDecimal("150.00"))
 			.accountId(1L)
 			.build();
+		when(companyRepository.findByIsuSrtCd("AAPL")).thenReturn(Optional.of(company));
+		when(memberRepository.getByUsername(any())).thenReturn(member);
 
 		orderService.placeOrder(request, "test");
 
@@ -157,6 +164,9 @@ class OrderServiceTest {
 			.price(new BigDecimal("150.00"))
 			.accountId(1L)
 			.build();
+		when(companyRepository.findByIsuSrtCd("AAPL")).thenReturn(Optional.of(company));
+		when(memberRepository.getByUsername(any())).thenReturn(member);
+
 		orderService.placeOrder(buyOrder, "test");
 
 		OrderBookResponse response = orderService.getBook("AAPL");
@@ -172,6 +182,9 @@ class OrderServiceTest {
 		CountDownLatch latch = new CountDownLatch(2);
 		AtomicReference<OrderBookResponse> response1 = new AtomicReference<>();
 		AtomicReference<OrderBookResponse> response2 = new AtomicReference<>();
+
+		when(companyRepository.findByIsuSrtCd("AAPL")).thenReturn(Optional.of(company));
+		when(memberRepository.getByUsername(any())).thenReturn(member);
 
 		Thread t1 = new Thread(() -> {
 			try {
