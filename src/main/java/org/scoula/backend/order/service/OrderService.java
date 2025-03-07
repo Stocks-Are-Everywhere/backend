@@ -30,8 +30,10 @@ public class OrderService {
 	private final SimpMessagingTemplate messagingTemplate;
 
 	private final TradeHistoryService tradeHistoryService;
-
-	// 지정가 주문
+	
+	/**
+	 * 지정가 주문 - 동기 방식
+	 */
 	public void placeOrder(final OrderRequest request) throws MatchingException {
 		// 지정가 주문 가격 견적 유효성 검증
 		final BigDecimal price = request.price();
@@ -44,7 +46,9 @@ public class OrderService {
 		processOrder(order);
 	}
 
-	// 주문 처리
+	/**
+	 * 주문 처리 - 동기 방식
+	 */
 	private void processOrder(final Order order) throws MatchingException {
 		final OrderBookService orderBook = addOrderBook(order.getCompanyCode());
 		orderBook.received(order);
