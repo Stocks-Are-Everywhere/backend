@@ -17,6 +17,7 @@ import org.scoula.backend.order.controller.response.OrderSummaryResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.dto.OrderDto;
+import org.scoula.backend.order.service.exception.CompanyNotFound;
 import org.scoula.backend.order.service.exception.MatchingException;
 import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
 import org.scoula.backend.order.service.validator.OrderValidator;
@@ -65,7 +66,7 @@ public class OrderService {
 	// 종가 기준 가격 검증
 	private void validateClosingPrice(final BigDecimal price, final String companyCode) {
 		final Company company = companyRepository.findByIsuSrtCd(companyCode)
-				.orElseThrow(PriceOutOfRangeException::new);
+				.orElseThrow(CompanyNotFound::new);
 
 		if (!company.isWithinClosingPriceRange(price)) {
 			throw new PriceOutOfRangeException();
@@ -78,7 +79,6 @@ public class OrderService {
 		return new OrderDto(request).to(account);
 	}
 
-	// 주문 처리
 	private void processOrder(final Order order) throws MatchingException {
 		final OrderBookService orderBook = addOrderBook(order.getCompanyCode());
 		orderBook.received(order);

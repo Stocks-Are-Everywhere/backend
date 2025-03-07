@@ -1,6 +1,8 @@
 package org.scoula.backend.order.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -19,6 +21,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.scoula.backend.global.jwt.JwtUtil;
@@ -39,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 @ActiveProfiles("test")
 class OrderBookServiceTest {
 
+	@InjectMocks
 	private OrderBookService orderBookService;
 
 	@Mock

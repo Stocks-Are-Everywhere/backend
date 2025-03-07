@@ -49,7 +49,7 @@ public class OrderLimitTest {
     SimpMessagingTemplate simpMessagingTemplate;
 
     Company company = Company.builder().isuCd("심상전자").isuNm("005930").closingPrice(new BigDecimal(1000)).build();
-    Member member = new Member(1L, "googleId", "username", "email@a.com", MemberRoleEnum.USER);
+    Member member = Member.builder().id(1L).username("username").googleId("googleId").role(MemberRoleEnum.USER).build();
 
     @Test
     @DisplayName("입력된 가격이 종가 기준 상향 30% 이상일 경우 정상적으로 처리한다.")
