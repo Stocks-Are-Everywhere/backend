@@ -69,6 +69,12 @@ public class Order extends BaseEntity {
 		this.remainingQuantity = this.remainingQuantity.subtract(quantity);
 	}
 
+	public void completeIfNoRemainingQuantity() {
+		if (this.remainingQuantity.compareTo(BigDecimal.ZERO) == 0) {
+			this.status = OrderStatus.COMPLETE;
+		}
+	}
+
 	public boolean isSellType() {
 		return type == Type.SELL;
 	}

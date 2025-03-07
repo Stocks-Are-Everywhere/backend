@@ -146,8 +146,12 @@ public class TradeHistoryService {
 	private void updateOrderQuantity(final Long sellOrderId, final Long buyOrderId, final BigDecimal quantity) {
 		final Order sellOrder = orderRepository.findById(sellOrderId).orElseThrow();
 		final Order buyOrder = orderRepository.findById(buyOrderId).orElseThrow();
+
 		sellOrder.updateQuantity(quantity);
+		sellOrder.completeIfNoRemainingQuantity();
 		buyOrder.updateQuantity(quantity);
+		buyOrder.completeIfNoRemainingQuantity();
+
 		orderRepository.save(sellOrder);
 		orderRepository.save(buyOrder);
 	}
