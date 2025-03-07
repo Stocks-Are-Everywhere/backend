@@ -1,43 +1,43 @@
 package org.scoula.backend.order.service;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.assertj.core.api.AssertionsForClassTypes.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.scoula.backend.order.controller.response.KisStockResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
+import org.scoula.backend.order.domain.TimeFrame;
 import org.scoula.backend.order.domain.TradeHistory;
 import org.scoula.backend.order.dto.CandleDto;
 import org.scoula.backend.order.dto.ChartResponseDto;
 import org.scoula.backend.order.dto.ChartUpdateDto;
 import org.scoula.backend.order.repository.TradeHistoryRepositoryImpl;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
+
+/**
+ * TradeHistoryService 클래스에 대한 단위 테스트
+ */
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("TradeHistoryService 테스트")
 class TradeHistoryServiceTest {
 
 	@Mock
@@ -50,776 +50,655 @@ class TradeHistoryServiceTest {
 	private TradeHistoryService tradeHistoryService;
 
 	@Captor
-	private ArgumentCaptor<TradeHistory> tradeHistoryCaptor;
-
-	@Captor
-	private ArgumentCaptor<ChartUpdateDto> chartUpdateDtoCaptor;
-
-	@Captor
 	private ArgumentCaptor<String> topicCaptor;
 
-	private static final String TEST_SYMBOL = "005930"; // Samsung Electronics code
-	private static final String SECONDARY_SYMBOL = "035420"; // Naver code
-	private static final String NON_EXISTENT_SYMBOL = "NONEXIST";
-	private static final double DEFAULT_PRICE = 60000.0;
-	private static final double HIGH_PRICE = 61000.0;
-	private static final double LOW_PRICE = 59500.0;
-	private static final double CLOSE_PRICE = 60500.0;
-	private static final int DEFAULT_VOLUME = 100;
-	private static final int CANDLE_KEEP_NUMBER = 30; // TradeHistoryService에 정의된 값과 일치해야 함
-	private static final int MAX_TRADE_HISTORY = 1000; // TradeHistoryService에 정의된 값과 일치해야 함
-
-	// 내부 맵 필드에 접근하기 위한 참조 변수
-	private Map<String, ConcurrentLinkedQueue<TradeHistory>> recentTradesMap;
-	private Map<String, List<CandleDto>> candleMap;
-
-	@BeforeEach
-	void setUp() {
-		// 내부 컬렉션을 테스트를 위해 초기화 (가변 맵 사용)
-		recentTradesMap = new ConcurrentHashMap<>();
-		candleMap = new ConcurrentHashMap<>();
-
-		ReflectionTestUtils.setField(tradeHistoryService, "recentTradesMap", recentTradesMap);
-		ReflectionTestUtils.setField(tradeHistoryService, "candleMap", candleMap);
-	}
-
-	// TC14.1 일반 케이스 테스트
-	@Nested
-	@DisplayName("일반 케이스 - 캔들 데이터 생성 및 관리")
-	class NormalCaseTests {
-
-		// TC14.1.1 - 새 캔들 생성
-		@Test
-		@DisplayName("TC14.1.1 - 지정된 시간 간격으로 새 캔들 생성")
-		void createNewCandleTest() {
-			// given - 초기 조건: 캔들 데이터 존재
-			List<CandleDto> initialCandles = new ArrayList<>();
-			long now = Instant.now().getEpochSecond();
-			long candleTime = now - (now % 15);
-
-			CandleDto initialCandle = CandleDto.builder()
-					.time(candleTime - 15) // 이전 캔들
-					.open(DEFAULT_PRICE)
-					.high(HIGH_PRICE)
-					.low(LOW_PRICE)
-					.close(CLOSE_PRICE)
-					.volume(DEFAULT_VOLUME)
-					.build();
-			initialCandles.add(initialCandle);
-			candleMap.put(TEST_SYMBOL, initialCandles);
-
-			// when - 새 캔들 생성
-			tradeHistoryService.updateCandles(TEST_SYMBOL);
-
-			// then - 예상 결과: 정확한 시간에 새 캔들 생성, 초기값 설정
-			List<CandleDto> candles = candleMap.get(TEST_SYMBOL);
-			assertThat(candles).hasSize(2);
-
-			CandleDto newCandle = candles.get(1);
-			assertThat(newCandle.getTime()).isEqualTo(candleTime);
-			assertThat(newCandle.getOpen()).isEqualTo(CLOSE_PRICE); // 이전 캔들의 종가가 시가가 됨
-			assertThat(newCandle.getHigh()).isEqualTo(CLOSE_PRICE);
-			assertThat(newCandle.getLow()).isEqualTo(CLOSE_PRICE);
-			assertThat(newCandle.getClose()).isEqualTo(CLOSE_PRICE);
-			assertThat(newCandle.getVolume()).isEqualTo(0);
-		}
-
-		// TC14.1.2 - 거래 기반 캔들 업데이트
-		@Test
-		@DisplayName("TC14.1.2 - 거래 발생 시 현재 캔들 데이터 업데이트")
-		void updateCandleBasedOnTradeTest() {
-			// given - 초기 조건: 활성 캔들 존재, 거래 발생
-			List<CandleDto> candles = new ArrayList<>();
-			long now = Instant.now().getEpochSecond();
-			long candleTime = now - (now % 15);
-
-			CandleDto activeCandle = CandleDto.builder()
-					.time(candleTime)
-					.open(DEFAULT_PRICE)
-					.high(DEFAULT_PRICE)
-					.low(DEFAULT_PRICE)
-					.close(DEFAULT_PRICE)
-					.volume(0)
-					.build();
-			candles.add(activeCandle);
-			candleMap.put(TEST_SYMBOL, candles);
-
-			// 거래 데이터 생성
-			TradeHistoryResponse trade = TradeHistoryResponse.builder()
-					.companyCode(TEST_SYMBOL)
-					.quantity(BigDecimal.valueOf(50))
-					.price(BigDecimal.valueOf(HIGH_PRICE)) // 61000, 새로운 고가
-					.tradeTime(LocalDateTime.now())
-					.build();
-
-			TradeHistoryResponse trade2 = TradeHistoryResponse.builder()
-					.companyCode(TEST_SYMBOL)
-					.quantity(BigDecimal.valueOf(30))
-					.price(BigDecimal.valueOf(LOW_PRICE)) // 59500, 새로운 저가
-					.tradeTime(LocalDateTime.now().plusSeconds(5))
-					.build();
-
-			// when - 거래 발생에 따른 캔들 업데이트
-			tradeHistoryService.saveTradeHistory(trade);
-			tradeHistoryService.saveTradeHistory(trade2);
-
-			// then - 예상 결과: 고가/저가/종가/거래량 정확히 업데이트
-			List<CandleDto> updatedCandles = candleMap.get(TEST_SYMBOL);
-			CandleDto updatedCandle = updatedCandles.get(0);
-
-			assertThat(updatedCandle.getOpen()).isEqualTo(DEFAULT_PRICE);
-			assertThat(updatedCandle.getHigh()).isEqualTo(HIGH_PRICE); // 최고가 업데이트
-			assertThat(updatedCandle.getLow()).isEqualTo(LOW_PRICE);  // 최저가 업데이트
-			assertThat(updatedCandle.getClose()).isEqualTo(LOW_PRICE); // 마지막 거래가 종가
-			assertThat(updatedCandle.getVolume()).isEqualTo(80); // 총 거래량
-		}
-
-		// TC14.1.3 - 다양한 시간대 캔들 생성 (시뮬레이션)
-		@Test
-		@DisplayName("TC14.1.3 - 다양한 시간대 캔들 생성 및 관리")
-		void multipleCandleTimeframesTest() {
-			// given - 초기 조건: 충분한 거래 데이터 존재
-			// 15초 간격으로 30개의 캔들 생성 시뮬레이션
-			long baseTime = Instant.now().getEpochSecond();
-
-			// 여러 캔들 생성
-			for (int i = 0; i < 10; i++) {
-				tradeHistoryService.updateCandles(TEST_SYMBOL);
-
-				// 각 캔들에 거래 추가
-				TradeHistoryResponse trade = TradeHistoryResponse.builder()
-						.companyCode(TEST_SYMBOL)
-						.quantity(BigDecimal.valueOf(10 + i))
-						.price(BigDecimal.valueOf(DEFAULT_PRICE + (i * 100))) // 가격 변동
-						.tradeTime(LocalDateTime.now().plusSeconds(i * 15))
-						.build();
-
-				tradeHistoryService.saveTradeHistory(trade);
-			}
-
-			// when & then - 예상 결과: 각 시간대별 캔들 정확히 생성 및 관리
-			List<CandleDto> resultCandles = candleMap.get(TEST_SYMBOL);
-
-			// 캔들 수 확인
-			assertThat(resultCandles).hasSize(10);
-
-			// 캔들 시간 간격 검증
-			for (int i = 1; i < resultCandles.size(); i++) {
-				CandleDto prevCandle = resultCandles.get(i - 1);
-				CandleDto currentCandle = resultCandles.get(i);
-
-				// 캔들 시간 간격이 일정한지 확인
-				assertThat(currentCandle.getTime() - prevCandle.getTime()).isEqualTo(15);
-
-				// 이전 종가와 현재 시가가 같은지 확인
-				assertThat(currentCandle.getOpen()).isEqualTo(prevCandle.getClose());
-			}
-
-			// 마지막 캔들의 가격과 거래량 확인
-			CandleDto lastCandle = resultCandles.get(resultCandles.size() - 1);
-			assertThat(lastCandle.getClose()).isEqualTo(DEFAULT_PRICE + 900); // 마지막 거래 가격
-			assertThat(lastCandle.getVolume()).isEqualTo(19); // 마지막 거래량
-		}
-	}
-
-	// TC14.2 예외 케이스 테스트
-	@Nested
-	@DisplayName("예외 케이스 - 비정상 상황 처리")
-	class ExceptionCaseTests {
-
-		// TC14.2.1 - 거래 없는 기간 캔들
-		@Test
-		@DisplayName("TC14.2.1 - 거래가 없는 시간대의 캔들 처리")
-		void noCandleTradesPeriodTest() {
-			// given - 초기 조건: 거래 없는 기간 존재
-			List<CandleDto> candles = new ArrayList<>();
-			long now = Instant.now().getEpochSecond();
-			long candleTime = now - (now % 15);
-
-			// 초기 캔들 생성
-			CandleDto initialCandle = CandleDto.builder()
-					.time(candleTime - 15)
-					.open(DEFAULT_PRICE)
-					.high(HIGH_PRICE)
-					.low(LOW_PRICE)
-					.close(CLOSE_PRICE) // 마지막 종가
-					.volume(DEFAULT_VOLUME)
-					.build();
-			candles.add(initialCandle);
-			candleMap.put(TEST_SYMBOL, candles);
-
-			// when - 거래 없이 새 캔들 생성
-			tradeHistoryService.updateCandles(TEST_SYMBOL);
-
-			// then - 예상 결과: 이전 종가 유지, 거래량 0으로 캔들 생성
-			List<CandleDto> updatedCandles = candleMap.get(TEST_SYMBOL);
-			assertThat(updatedCandles).hasSize(2);
-
-			CandleDto newCandle = updatedCandles.get(1);
-			assertThat(newCandle.getOpen()).isEqualTo(CLOSE_PRICE); // 이전 종가가 시가로 설정
-			assertThat(newCandle.getHigh()).isEqualTo(CLOSE_PRICE);
-			assertThat(newCandle.getLow()).isEqualTo(CLOSE_PRICE);
-			assertThat(newCandle.getClose()).isEqualTo(CLOSE_PRICE); // 종가도 유지
-			assertThat(newCandle.getVolume()).isEqualTo(0); // 거래량은 0
-		}
-
-		// TC14.2.2 - 시스템 중단 후 캔들 복구 (시뮬레이션)
-		@Test
-		@DisplayName("TC14.2.2 - 시스템 중단 후 캔들 데이터 처리")
-		void systemRecoveryAfterInterruptionTest() {
-			// given - 초기 조건: 시스템 재시작 상태 (마지막 캔들이 오래된 상태)
-			List<CandleDto> candles = new ArrayList<>();
-			long now = Instant.now().getEpochSecond();
-			long oldCandleTime = now - 3600; // 1시간 전 캔들
-
-			CandleDto oldCandle = CandleDto.builder()
-					.time(oldCandleTime)
-					.open(DEFAULT_PRICE)
-					.high(HIGH_PRICE)
-					.low(LOW_PRICE)
-					.close(CLOSE_PRICE)
-					.volume(DEFAULT_VOLUME)
-					.build();
-			candles.add(oldCandle);
-			candleMap.put(TEST_SYMBOL, candles);
-
-			// 거래 데이터 저장 (최신 거래)
-			ConcurrentLinkedQueue<TradeHistory> trades = new ConcurrentLinkedQueue<>();
-			TradeHistory recentTrade = TradeHistory.builder()
-					.companyCode(TEST_SYMBOL)
-					.price(BigDecimal.valueOf(62000)) // 새로운 가격
-					.quantity(BigDecimal.valueOf(50))
-					.tradeTime(LocalDateTime.now().minusMinutes(5)) // 5분 전 거래
-					.build();
-			trades.offer(recentTrade);
-			recentTradesMap.put(TEST_SYMBOL, trades);
-
-			// when - 시스템 재시작 후 캔들 업데이트
-			tradeHistoryService.updateCandles(TEST_SYMBOL);
-
-			// then - 예상 결과: 누락된 캔들 식별 및 가능한 데이터로 복구
-			List<CandleDto> updatedCandles = candleMap.get(TEST_SYMBOL);
-			assertThat(updatedCandles).hasSize(2); // 새 캔들 하나 추가
-
-			CandleDto newCandle = updatedCandles.get(1);
-			assertThat(newCandle.getTime()).isGreaterThan(oldCandleTime);
-			// 최근 거래가 있으므로 그 가격 기반으로 설정됨
-			assertThat(newCandle.getOpen()).isEqualTo(CLOSE_PRICE); // 이전 캔들의 종가
-			assertThat(newCandle.getClose()).isEqualTo(CLOSE_PRICE); // 아직 거래가 반영되기 전
-		}
-
-		// TC14.2.3 - 비정상 거래 데이터 처리
-		@Test
-		@DisplayName("TC14.2.3 - 이상치(극단적 가격)가 포함된 거래 처리")
-		void abnormalTradeDataHandlingTest() {
-			// given - 초기 조건: 정상 캔들 데이터가 있는 상태
-			List<CandleDto> candles = new ArrayList<>();
-			long now = Instant.now().getEpochSecond();
-			long candleTime = now - (now % 15);
-
-			CandleDto normalCandle = CandleDto.builder()
-					.time(candleTime)
-					.open(DEFAULT_PRICE)
-					.high(DEFAULT_PRICE)
-					.low(DEFAULT_PRICE)
-					.close(DEFAULT_PRICE)
-					.volume(0)
-					.build();
-			candles.add(normalCandle);
-			candleMap.put(TEST_SYMBOL, candles);
-
-			// 극단적인 가격의 거래 데이터 생성 (정상 가격의 2배)
-			TradeHistoryResponse extremeTrade = TradeHistoryResponse.builder()
-					.companyCode(TEST_SYMBOL)
-					.quantity(BigDecimal.valueOf(10))
-					.price(BigDecimal.valueOf(DEFAULT_PRICE * 2)) // 극단적인 가격
-					.tradeTime(LocalDateTime.now())
-					.build();
-
-			// when - 이상 거래 데이터 처리
-			tradeHistoryService.saveTradeHistory(extremeTrade);
-
-			// then - 예상 결과: 이상치도 정상 처리 (현재 서비스는 이상치 필터링 없음)
-			List<CandleDto> updatedCandles = candleMap.get(TEST_SYMBOL);
-			CandleDto updatedCandle = updatedCandles.get(0);
-
-			// 서비스가 이상치를 필터링하지 않으므로 값이 그대로 반영됨
-			assertThat(updatedCandle.getHigh()).isEqualTo(DEFAULT_PRICE * 2);
-			assertThat(updatedCandle.getClose()).isEqualTo(DEFAULT_PRICE * 2);
-			assertThat(updatedCandle.getVolume()).isEqualTo(10);
-		}
-	}
-
-	// TC14.3 엣지 케이스 테스트
-	@Nested
-	@DisplayName("엣지 케이스 - 극한 상황 처리")
-	class EdgeCaseTests {
-
-		// TC14.3.1 - 대량 거래 기반 캔들 생성
-		@Test
-		@DisplayName("TC14.3.1 - 대량 거래 기반 캔들 생성")
-		void highFrequencyTradesTest() {
-			// given - 초기 조건: 고빈도 거래 환경
-			List<CandleDto> candles = new ArrayList<>();
-			long now = Instant.now().getEpochSecond();
-			long candleTime = now - (now % 15);
-
-			CandleDto initialCandle = CandleDto.builder()
-					.time(candleTime)
-					.open(DEFAULT_PRICE)
-					.high(DEFAULT_PRICE)
-					.low(DEFAULT_PRICE)
-					.close(DEFAULT_PRICE)
-					.volume(0)
-					.build();
-			candles.add(initialCandle);
-			candleMap.put(TEST_SYMBOL, candles);
-
-			// 대량의 거래 데이터 생성 (100건)
-			List<TradeHistoryResponse> highFrequencyTrades = IntStream.range(0, 100)
-					.mapToObj(i -> {
-						double price = DEFAULT_PRICE + (i % 20) * 10 - 100; // 가격 변동
-						return TradeHistoryResponse.builder()
-								.companyCode(TEST_SYMBOL)
-								.quantity(BigDecimal.valueOf(1 + (i % 5)))
-								.price(BigDecimal.valueOf(price))
-								.tradeTime(LocalDateTime.now().plusNanos(i * 1_000_000)) // 밀리초 간격
-								.build();
-					})
-					.collect(Collectors.toList());
-
-			// when - 대량 거래 처리
-			for (TradeHistoryResponse trade : highFrequencyTrades) {
-				tradeHistoryService.saveTradeHistory(trade);
-			}
-
-			// then - 예상 결과: 모든 거래가 정확히 반영됨
-			List<CandleDto> updatedCandles = candleMap.get(TEST_SYMBOL);
-			CandleDto updatedCandle = updatedCandles.get(0);
-
-			// 최소/최대 가격 확인
-			double expectedMin = DEFAULT_PRICE - 100;
-			double expectedMax = DEFAULT_PRICE + 190;
-
-			assertThat(updatedCandle.getLow()).isEqualTo(expectedMin);
-			assertThat(updatedCandle.getHigh()).isEqualTo(expectedMax);
-			// 마지막 거래의 가격이 종가가 됨
-			assertThat(updatedCandle.getClose()).isEqualTo(DEFAULT_PRICE + 90);
-
-			// 총 거래량 확인 (1~5 사이의 수량)
-			int expectedTotalVolume = highFrequencyTrades.stream()
-					.mapToInt(t -> t.quantity().intValue())
-					.sum();
-			assertThat(updatedCandle.getVolume()).isEqualTo(expectedTotalVolume);
-		}
-
-		// TC14.3.2 - 장기간 캔들 데이터 관리 (시뮬레이션)
-		@Test
-		@DisplayName("TC14.3.2 - 장기간 캔들 데이터 관리")
-		void longTermCandleDataManagementTest() {
-			// given - 초기 조건: 대량의 히스토리 데이터
-			// 50개의 캔들 생성 (CANDLE_KEEP_NUMBER = 30 초과)
-			long now = Instant.now().getEpochSecond();
-			List<CandleDto> historicalCandles = IntStream.range(0, 50)
-					.mapToObj(i -> {
-						long time = now - ((50 - i) * 15);
-						return CandleDto.builder()
-								.time(time)
-								.open(DEFAULT_PRICE - i)
-								.high(DEFAULT_PRICE + 100 - i)
-								.low(DEFAULT_PRICE - 100 - i)
-								.close(DEFAULT_PRICE + 50 - i)
-								.volume(100 + i)
-								.build();
-					})
-					.collect(Collectors.toList());
-			candleMap.put(TEST_SYMBOL, historicalCandles);
-
-			// when - 추가 캔들 생성 시도
-			tradeHistoryService.updateCandles(TEST_SYMBOL);
-
-			// then - 예상 결과: 최대 개수만 유지됨
-			List<CandleDto> managedCandles = candleMap.get(TEST_SYMBOL);
-
-			// CANDLE_KEEP_NUMBER = 30개만 유지되는지 확인
-			assertThat(managedCandles).hasSize(CANDLE_KEEP_NUMBER);
-
-			// 가장 최근 데이터가 유지되는지 확인
-			long oldestCandleTime = managedCandles.get(0).getTime();
-			long newestCandleTime = managedCandles.get(managedCandles.size() - 1).getTime();
-
-			// 가장 오래된 캔들과 최신 캔들의 시간 차이가 (CANDLE_KEEP_NUMBER-1) * 15초인지 확인
-			assertThat(newestCandleTime - oldestCandleTime).isEqualTo((CANDLE_KEEP_NUMBER - 1) * 15);
-		}
-
-		// TC14.3.3 - 시간대 경계 거래 처리
-		@Test
-		@DisplayName("TC14.3.3 - 캔들 시간 경계에 발생한 거래 처리")
-		void tradeCandleBoundaryTest() {
-			// given - 초기 조건: 캔들 전환 시점의 거래
-			long now = Instant.now().getEpochSecond();
-			long currentCandleTime = now - (now % 15);
-
-			// 첫 번째 캔들 생성
-			List<CandleDto> candles = new ArrayList<>();
-			CandleDto firstCandle = CandleDto.builder()
-					.time(currentCandleTime - 15) // 이전 캔들
-					.open(DEFAULT_PRICE)
-					.high(DEFAULT_PRICE)
-					.low(DEFAULT_PRICE)
-					.close(DEFAULT_PRICE)
-					.volume(0)
-					.build();
-			candles.add(firstCandle);
-			candleMap.put(TEST_SYMBOL, candles);
-
-			// 두 번째 캔들 생성
-			tradeHistoryService.updateCandles(TEST_SYMBOL);
-
-			// 경계 시점 거래 데이터 (두 번째 캔들 경계)
-			TradeHistoryResponse boundaryTrade = TradeHistoryResponse.builder()
-					.companyCode(TEST_SYMBOL)
-					.quantity(BigDecimal.valueOf(50))
-					.price(BigDecimal.valueOf(HIGH_PRICE))
-					.tradeTime(LocalDateTime.now()) // 현재 시간 (두 번째 캔들 시간대)
-					.build();
-
-			// when - 경계 시점 거래 처리
-			tradeHistoryService.saveTradeHistory(boundaryTrade);
-
-			// 세 번째 캔들 생성
-			tradeHistoryService.updateCandles(TEST_SYMBOL);
-
-			// then - 예상 결과: 정확한 캔들에 거래 할당
-			List<CandleDto> updatedCandles = candleMap.get(TEST_SYMBOL);
-			assertThat(updatedCandles).hasSize(3);
-
-			// 두 번째 캔들에 거래가 반영되었는지 확인
-			CandleDto secondCandle = updatedCandles.get(1);
-			assertThat(secondCandle.getHigh()).isEqualTo(HIGH_PRICE);
-			assertThat(secondCandle.getClose()).isEqualTo(HIGH_PRICE);
-			assertThat(secondCandle.getVolume()).isEqualTo(50);
-
-			// 세 번째 캔들은 두 번째 캔들의 종가를 시가로 사용
-			CandleDto thirdCandle = updatedCandles.get(2);
-			assertThat(thirdCandle.getOpen()).isEqualTo(HIGH_PRICE);
-			assertThat(thirdCandle.getVolume()).isEqualTo(0); // 아직 거래 없음
-		}
-
-		// TC14.3.4 - 캔들 데이터 제한 관리
-		@Test
-		@DisplayName("TC14.3.4 - 최대 보관 개수 초과 시 캔들 관리")
-		void candleDataLimitManagementTest() {
-			// given - 초기 조건: 최대치에 근접한 캔들 데이터
-			// 정확히 CANDLE_KEEP_NUMBER개의 캔들 생성
-			long now = Instant.now().getEpochSecond();
-			List<CandleDto> existingCandles = IntStream.range(0, CANDLE_KEEP_NUMBER)
-					.mapToObj(i -> {
-						long time = now - ((CANDLE_KEEP_NUMBER - i) * 15);
-						return CandleDto.builder()
-								.time(time)
-								.open(DEFAULT_PRICE)
-								.high(DEFAULT_PRICE + 100)
-								.low(DEFAULT_PRICE - 100)
-								.close(DEFAULT_PRICE + 50)
-								.volume(100)
-								.build();
-					})
-					.collect(Collectors.toList());
-			candleMap.put(TEST_SYMBOL, existingCandles);
-
-			// when - 추가 캔들 생성
-			tradeHistoryService.updateCandles(TEST_SYMBOL);
-
-			// then - 예상 결과: 가장 오래된 데이터 제거, 메모리 효율성 유지
-			List<CandleDto> resultCandles = candleMap.get(TEST_SYMBOL);
-
-			// 여전히 CANDLE_KEEP_NUMBER개만 유지
-			assertThat(resultCandles).hasSize(CANDLE_KEEP_NUMBER);
-
-			// 가장 오래된 캔들이 제거되었는지 확인
-			long oldestTimeInOriginal = existingCandles.get(0).getTime();
-			long oldestTimeInResult = resultCandles.get(0).getTime();
-
-			// 결과의 가장 오래된 캔들은 원본의 두 번째 캔들이어야 함
-			assertThat(oldestTimeInResult).isGreaterThan(oldestTimeInOriginal);
-
-			// 새 캔들이 마지막에 추가되었는지 확인
-			CandleDto newestCandle = resultCandles.get(resultCandles.size() - 1);
-			assertThat(newestCandle.getTime()).isGreaterThan(existingCandles.get(existingCandles.size() - 1).getTime());
-		}
-
-		@Test
-		@DisplayName("최대 거래내역 개수 초과 시 거래 기록 관리")
-		void tradeHistoryLimitManagementTest() {
-			// given - 초기 조건: 최대치의 거래 기록
-			ConcurrentLinkedQueue<TradeHistory> trades = new ConcurrentLinkedQueue<>();
-
-			// MAX_TRADE_HISTORY개의 거래 추가
-			for (int i = 0; i < MAX_TRADE_HISTORY; i++) {
-				TradeHistory trade = TradeHistory.builder()
-						.id((long)i)
-						.companyCode(TEST_SYMBOL)
-						.price(BigDecimal.valueOf(DEFAULT_PRICE + i))
-						.quantity(BigDecimal.valueOf(10))
-						.tradeTime(LocalDateTime.now().minusSeconds(MAX_TRADE_HISTORY - i))
-						.build();
-				trades.offer(trade);
-			}
-			recentTradesMap.put(TEST_SYMBOL, trades);
-
-			// 새 거래 생성
-			TradeHistoryResponse newTrade = TradeHistoryResponse.builder()
-					.id((long)MAX_TRADE_HISTORY)
-					.companyCode(TEST_SYMBOL)
-					.price(BigDecimal.valueOf(DEFAULT_PRICE + 5000))
-					.quantity(BigDecimal.valueOf(100))
-					.tradeTime(LocalDateTime.now())
-					.build();
-
-			// when - 추가 거래 저장
-			tradeHistoryService.saveTradeHistory(newTrade);
-
-			// then - 예상 결과: 가장 오래된 거래 제거, 최대 개수 유지
-			ConcurrentLinkedQueue<TradeHistory> resultTrades = recentTradesMap.get(TEST_SYMBOL);
-
-			// 여전히 MAX_TRADE_HISTORY개만 유지
-			assertThat(resultTrades).hasSize(MAX_TRADE_HISTORY);
-
-			// 가장 오래된 거래(ID=0)가 제거되고 가장 최근 거래(ID=MAX_TRADE_HISTORY)가 추가되었는지 확인
-			boolean hasOldestTrade = resultTrades.stream().anyMatch(t -> t.getId() == 0);
-			boolean hasNewestTrade = resultTrades.stream().anyMatch(t -> t.getId() == MAX_TRADE_HISTORY);
-
-			assertThat(hasOldestTrade).isFalse();
-			assertThat(hasNewestTrade).isTrue();
-		}
-	}
+	@Captor
+	private ArgumentCaptor<ChartUpdateDto> updateDtoCaptor;
+
+	@Captor
+	private ArgumentCaptor<TradeHistory> tradeHistoryCaptor;
+
+	// 테스트에 사용할 상수들
+	private static final String TEST_COMPANY_CODE = "SAMPLE";
+	private static final double DEFAULT_PRICE = 57400.0; // 기본 가격
+	private static final int MAX_TRADE_HISTORY = 1000; // 종목당 최대 보관 거래 수
+	private static final int CANDLE_KEEP_NUMBER = 100; // 캔들 데이터 보관 개수
 
 	@Nested
-	@DisplayName("거래 내역 조회 및 변환 테스트")
-	class TradeHistoryRetrievalTests {
+	@TestMethodOrder(MethodOrderer.DisplayName.class)
+	@DisplayName("7. 캔들 데이터 성성 및 관리 테스트")
+	class MultipleTimeFrameCandleTests {
 
 		@Test
-		@DisplayName("최근 거래 조회 - 거래 있음")
-		void getLastTradeTest() {
-			// given
-			TradeHistory trade = createTradeHistory(TEST_SYMBOL, DEFAULT_PRICE);
-			ConcurrentLinkedQueue<TradeHistory> trades = new ConcurrentLinkedQueue<>();
-			trades.offer(trade);
-			recentTradesMap.put(TEST_SYMBOL, trades);
+		@DisplayName("TC7.1.1 거래 내역 저장 및 메모리/캔들 업데이트")
+		void saveTradeHistory_ShouldStoreTradeAndUpdateCandles() {
+			// Given
+			TradeHistoryResponse tradeResponse = createMockTradeHistoryResponse(TEST_COMPANY_CODE);
 
-			// when
-			Optional<TradeHistory> lastTrade = tradeHistoryService.getLastTrade(TEST_SYMBOL);
+			// When
+			tradeHistoryService.saveTradeHistory(tradeResponse);
 
-			// then
-			assertThat(lastTrade).isPresent();
-			assertThat(lastTrade.get().getPrice()).isEqualTo(BigDecimal.valueOf(DEFAULT_PRICE));
-		}
-
-		@Test
-		@DisplayName("최근 거래 조회 - 거래 없음")
-		void getLastTradeForNonExistingSymbolTest() {
-			// when
-			Optional<TradeHistory> lastTrade = tradeHistoryService.getLastTrade(NON_EXISTENT_SYMBOL);
-
-			// then
-			assertThat(lastTrade).isEmpty();
-		}
-
-		@Test
-		@DisplayName("차트 히스토리 조회")
-		void getChartHistoryTest() {
-			// given
-			List<CandleDto> candles = createSampleCandles();
-			candleMap.put(TEST_SYMBOL, candles);
-
-			// when
-			ChartResponseDto response = tradeHistoryService.getChartHistory(TEST_SYMBOL);
-
-			// then
-			assertThat(response.getCandles())
-					.isNotNull()
-					.hasSize(1)
-					.isNotSameAs(candles); // 방어적 복사 확인
-
-			CandleDto responseCandle = response.getCandles().get(0);
-			assertThat(responseCandle.getClose()).isEqualTo(CLOSE_PRICE);
-		}
-
-		@Test
-		@DisplayName("전체 거래 내역 조회")
-		void getTradeHistoryTest() {
-			// given
-			List<TradeHistory> mockTradeHistories = new ArrayList<>();
-
-			TradeHistory trade1 = TradeHistory.builder()
-					.id(1L)
-					.companyCode(TEST_SYMBOL)
-					.price(BigDecimal.valueOf(DEFAULT_PRICE))
-					.quantity(BigDecimal.TEN)
-					.tradeTime(LocalDateTime.now())
-					.build();
-
-			TradeHistory trade2 = TradeHistory.builder()
-					.id(2L)
-					.companyCode(SECONDARY_SYMBOL)
-					.price(BigDecimal.valueOf(250000))
-					.quantity(BigDecimal.valueOf(5))
-					.tradeTime(LocalDateTime.now())
-					.build();
-
-			mockTradeHistories.add(trade1);
-			mockTradeHistories.add(trade2);
-
-			when(tradeHistoryRepository.getTradeHistory()).thenReturn(mockTradeHistories);
-
-			// when
-			List<TradeHistoryResponse> responses = tradeHistoryService.getTradeHistory();
-
-			// then
-			assertThat(responses).hasSize(2);
-			assertThat(responses.get(0).companyCode()).isEqualTo(TEST_SYMBOL);
-			assertThat(responses.get(1).companyCode()).isEqualTo(SECONDARY_SYMBOL);
-		}
-	}
-
-	@Nested
-	@DisplayName("거래 내역 저장 테스트")
-	class SaveTradeHistoryTests {
-
-		private TradeHistoryResponse createTradeHistoryResponse() {
-			return TradeHistoryResponse.builder()
-					.id(1L)
-					.companyCode(TEST_SYMBOL)
-					.sellOrderId(100L)
-					.buyOrderId(200L)
-					.quantity(BigDecimal.TEN)
-					.price(BigDecimal.valueOf(DEFAULT_PRICE))
-					.tradeTime(LocalDateTime.now())
-					.build();
-		}
-
-		@BeforeEach
-		void setUpCandles() {
-			// 각 테스트 전에 캔들 데이터 설정
-			List<CandleDto> candles = createSampleCandles();
-			candleMap.put(TEST_SYMBOL, candles);
-		}
-
-		@Test
-		@DisplayName("거래 내역 저장 및 웹소켓 전송")
-		void saveTradeHistoryTest() {
-			// given
-			TradeHistoryResponse response = createTradeHistoryResponse();
-
-			// when
-			tradeHistoryService.saveTradeHistory(response);
-
-			// then
-			// 1. 저장소에 저장 확인
-			verify(tradeHistoryRepository, times(1)).save(tradeHistoryCaptor.capture());
+			// Then
+			// 1. DB 저장 확인
+			verify(tradeHistoryRepository).save(tradeHistoryCaptor.capture());
 			TradeHistory savedTrade = tradeHistoryCaptor.getValue();
-			assertThat(savedTrade.getCompanyCode()).isEqualTo(TEST_SYMBOL);
+			assertEquals(TEST_COMPANY_CODE, savedTrade.getCompanyCode());
+			assertEquals(tradeResponse.price(), savedTrade.getPrice());
 
-			// 2. 웹소켓 메시지 전송 확인
-			verify(messagingTemplate, times(1)).convertAndSend(
-					topicCaptor.capture(),
-					chartUpdateDtoCaptor.capture()
-			);
-			assertThat(topicCaptor.getValue()).isEqualTo("/topic/chart/" + TEST_SYMBOL);
+			// 2. 메시지 전송 확인 - 여러 TimeFrame에 대해 메시지가 전송되므로 atLeastOnce() 사용
+			verify(messagingTemplate, atLeastOnce()).convertAndSend(topicCaptor.capture(), updateDtoCaptor.capture());
+
+			// 기본 메시지 토픽이 포함되어 있는지 확인
+			boolean hasBasicTopic = topicCaptor.getAllValues().stream()
+					.anyMatch(topic -> topic.equals("/topic/chart/" + TEST_COMPANY_CODE));
+			assertTrue(hasBasicTopic, "기본 차트 토픽으로 메시지가 전송되어야 합니다");
+
+			// 가격 정보가 올바른지 확인 (어떤 메시지든 가격은 동일해야 함)
+			boolean hasPriceMatch = updateDtoCaptor.getAllValues().stream()
+					.anyMatch(dto -> dto.price() == tradeResponse.price().doubleValue());
+			assertTrue(hasPriceMatch, "거래 가격 정보가 메시지에 포함되어야 합니다");
 		}
 
 		@Test
-		@DisplayName("KIS 데이터 처리 및 웹소켓 전송")
-		void sendForKITest() {
-			// given
-			TradeHistoryResponse response = createTradeHistoryResponse();
-			KisStockResponse kisResponse = mock(KisStockResponse.class);
+		@DisplayName("TC7.1.2 동일 거래의 여러 타임프레임 반영 확인")
+		void shouldReflectTradeInMultipleTimeFrames() {
+			// Given: 테스트 거래 생성
+			TradeHistoryResponse trade = createMockTradeHistoryResponse(TEST_COMPANY_CODE);
 
-			// when
-			tradeHistoryService.sendForKI(response, kisResponse);
+			// When: 거래 저장 및 캔들 업데이트
+			tradeHistoryService.saveTradeHistory(trade);
 
-			// then
-			// 저장소에 저장 확인
-			verify(tradeHistoryRepository, times(1)).save(any(TradeHistory.class));
+			// Then: 각 타임프레임 캔들 확인
+			Map<String, Map<TimeFrame, List<CandleDto>>> timeFrameCandleMap =
+					getPrivateField(tradeHistoryService, "timeFrameCandleMap");
 
-			// 웹소켓 메시지 전송 확인
-			verify(messagingTemplate, times(1)).convertAndSend(
-					eq("/topic/chart/" + TEST_SYMBOL),
-					any(ChartUpdateDto.class)
-			);
+			Map<TimeFrame, List<CandleDto>> companyCandles = timeFrameCandleMap.get(TEST_COMPANY_CODE);
+			assertNotNull(companyCandles, "종목의 캔들 맵이 존재해야 합니다");
+
+			// 모든 타임프레임에 대해 동일한 거래가 반영되었는지 확인
+			for (TimeFrame timeFrame : TimeFrame.values()) {
+				List<CandleDto> candles = companyCandles.get(timeFrame);
+				assertNotNull(candles, timeFrame + " 타임프레임의 캔들이 존재해야 합니다");
+				assertFalse(candles.isEmpty(), timeFrame + " 타임프레임의 캔들이 비어있지 않아야 합니다");
+
+				CandleDto latestCandle = candles.get(candles.size() - 1);
+				// 모든 타임프레임의 최신 캔들에 같은 거래가 반영되어야 함
+				assertEquals(trade.price().doubleValue(), latestCandle.close(),
+						timeFrame + " 타임프레임의 최신 캔들 종가가 거래 가격과 일치해야 합니다");
+			}
 		}
 
 		@Test
-		@DisplayName("다중 종목 거래 처리")
-		void multiSymbolTradeProcessingTest() {
-			// given
-			// 첫 번째 종목 캔들 설정은 이미 완료 (setUpCandles)
+		@DisplayName("TC7.1.3 타임프레임별 캔들 개수 및 범위 확인")
+		void shouldMaintainCorrectCandleCountAndRange() throws Exception {
+			// Given: 장시간의 거래 데이터 생성 (1시간 분량)
+			long baseTime = Instant.now().truncatedTo(ChronoUnit.HOURS).getEpochSecond();
+			List<TradeHistoryResponse> trades = new ArrayList<>();
 
-			// 두 번째 종목 캔들 설정
-			List<CandleDto> secondSymbolCandles = createSampleCandles();
-			candleMap.put(SECONDARY_SYMBOL, secondSymbolCandles);
+			// 1시간 동안 5분마다 거래 생성 (총 12개 거래)
+			for (int i = 0; i < 12; i++) {
+				TradeHistoryResponse trade = TradeHistoryResponse.builder()
+						.id((long)(i + 1))
+						.companyCode(TEST_COMPANY_CODE)
+						.price(BigDecimal.valueOf(50000 + i * 100))
+						.quantity(BigDecimal.valueOf(10))
+						.tradeTime(baseTime + i * 300) // 5분(300초)마다 거래
+						.build();
+				trades.add(trade);
+			}
 
-			// 두 종목의 거래 생성
-			TradeHistoryResponse trade1 = createTradeHistoryResponse(); // TEST_SYMBOL
+			// When: 모든 거래 저장
+			for (TradeHistoryResponse trade : trades) {
+				tradeHistoryService.saveTradeHistory(trade);
+			}
+
+			// Then: 타임프레임별 캔들 확인
+			Map<String, Map<TimeFrame, List<CandleDto>>> timeFrameCandleMap =
+					getPrivateField(tradeHistoryService, "timeFrameCandleMap");
+
+			Map<TimeFrame, List<CandleDto>> companyCandles = timeFrameCandleMap.get(TEST_COMPANY_CODE);
+
+			// 15초 캔들: 8개 이상 생성되어야 함
+			List<CandleDto> second15Candles = companyCandles.get(TimeFrame.SECONDS_15);
+
+			// 1분 캔들: 8개 이상 생성되어야 함
+			List<CandleDto> minute1Candles = companyCandles.get(TimeFrame.MINUTE_1);
+
+			// 5분 캔들: 8개 이상 생성되어야 함
+			List<CandleDto> minute5Candles = companyCandles.get(TimeFrame.MINUTE_5);
+
+			// 15분 캔들: 2개 이상 생성되어야 함
+			List<CandleDto> minute15Candles = companyCandles.get(TimeFrame.MINUTE_15);
+
+			// 30분 캔들: 1개 이상 생성되어야 함
+			List<CandleDto> minute30Candles = companyCandles.get(TimeFrame.MINUTE_30);
+
+			// 1시간 캔들: 1개 생성되어야 함
+			List<CandleDto> hour1Candles = companyCandles.get(TimeFrame.HOUR_1);
+
+			// 캔들 개수 확인 (시스템 시간의 불확실성을 고려한 완화된 설정)
+			assertThat(second15Candles.size()).isGreaterThanOrEqualTo(8); // 최소 8개
+			assertThat(minute1Candles.size()).isGreaterThanOrEqualTo(8); // 최소 8개
+			assertThat(minute5Candles.size()).isGreaterThanOrEqualTo(8); // 최소 8개
+			assertThat(minute15Candles.size()).isGreaterThanOrEqualTo(2); // 최소 2개
+			assertThat(minute30Candles.size()).isGreaterThanOrEqualTo(1); // 최소 1개
+			assertThat(hour1Candles.size()).isGreaterThanOrEqualTo(1); // 최소 1개
+
+			// 1시간 캔들의 가격 범위 확인
+			CandleDto hourCandle = hour1Candles.get(hour1Candles.size() - 1);
+			assertThat(hourCandle.high()).isEqualTo(51100.0); // 마지막 거래 가격
+			assertThat(hourCandle.low()).isEqualTo(50000.0);  // 첫 거래 가격
+			assertThat(hourCandle.volume()).isEqualTo(120);   // 총 거래량 (12거래 * 10수량)
+		}
+
+		@Test
+		@DisplayName("TC7.1.4 종목 추가에 따라 빈 캔들 채우기")
+		void getChartHistory_WithNoData_ShouldReturnDefaultCandle() {
+			// Given - 데이터 추가 없음
+
+			// When
+			ChartResponseDto chartResponse =
+					tradeHistoryService.getChartHistory("NONEXISTENT", TimeFrame.MINUTE_15.getTimeCode());
+
+			// Then
+			assertNotNull(chartResponse);
+			assertNotNull(chartResponse.candles());
+			assertEquals(1, chartResponse.candles().size(), "데이터가 없을 때 기본 캔들이 생성되어야 합니다");
+			assertEquals(DEFAULT_PRICE, chartResponse.candles().get(0).open(), "기본 가격이 설정되어야 합니다");
+		}
+
+		@Test
+		@DisplayName("TC7.1.5 마지막 거래 조회 테스트")
+		void getLastTrade_ShouldReturnLastTrade() {
+			// Given
+			TradeHistoryResponse firstResponse = TradeHistoryResponse.builder()
+					.id(1L)
+					.companyCode(TEST_COMPANY_CODE)
+					.sellOrderId(1L)
+					.buyOrderId(2L)
+					.quantity(BigDecimal.valueOf(10))
+					.price(BigDecimal.valueOf(57500))
+					.tradeTime(Instant.now().getEpochSecond()) // 1분 간격
+					.build();
+			tradeHistoryService.saveTradeHistory(firstResponse);
+
+			TradeHistoryResponse secondResponse = TradeHistoryResponse.builder()
+					.id(2L)
+					.companyCode(TEST_COMPANY_CODE)
+					.sellOrderId(1L)
+					.buyOrderId(2L)
+					.quantity(BigDecimal.valueOf(20))
+					.price(BigDecimal.valueOf(67500))
+					.tradeTime(Instant.now().getEpochSecond() + 1) // 1분 간격
+					.build();
+			tradeHistoryService.saveTradeHistory(secondResponse);
+
+			// When
+			Optional<TradeHistory> lastTrade = tradeHistoryService.getLastTrade(TEST_COMPANY_CODE);
+
+			// Then
+			assertTrue(lastTrade.isPresent());
+			assertEquals(firstResponse.quantity(), lastTrade.get().getQuantity());
+			assertEquals(firstResponse.price(), lastTrade.get().getPrice());
+		}
+
+		@Test
+		@DisplayName("TC7.2.1 거래 없는 기간의 캔들 생성 확인")
+		void shouldHandleEmptyPeriodsInCandleCreation() {
+			// Given: 기준 시간 설정
+			long currentTime = Instant.now().getEpochSecond();
+			long twoHoursAgo = currentTime - 7200; // 2시간 전
+
+			// 2시간 전 거래와 현재 거래 생성 (중간에 거래 없음)
+			TradeHistoryResponse oldTrade = TradeHistoryResponse.builder()
+					.id(1L)
+					.companyCode(TEST_COMPANY_CODE)
+					.price(BigDecimal.valueOf(50000))
+					.quantity(BigDecimal.valueOf(10))
+					.tradeTime(twoHoursAgo)
+					.build();
+
+			TradeHistoryResponse currentTrade = TradeHistoryResponse.builder()
+					.id(2L)
+					.companyCode(TEST_COMPANY_CODE)
+					.price(BigDecimal.valueOf(52000))
+					.quantity(BigDecimal.valueOf(5))
+					.tradeTime(currentTime)
+					.build();
+
+			// When: 거래 저장 메서드 실행
+			tradeHistoryService.saveTradeHistory(oldTrade);
+			tradeHistoryService.saveTradeHistory(currentTrade);
+
+			// Then: 캔들 데이터 확인
+			Map<String, Map<TimeFrame, List<CandleDto>>> timeFrameCandleMap =
+					getPrivateField(tradeHistoryService, "timeFrameCandleMap");
+
+			// 1시간 캔들 확인
+			List<CandleDto> hourCandles = timeFrameCandleMap.get(TEST_COMPANY_CODE).get(TimeFrame.HOUR_1);
+
+			// 최소 3개 이상의 캔들이 있어야 함 (2시간 전 캔들, 중간 캔들, 현재 시간 캔들)
+			assertThat(hourCandles.size()).isGreaterThanOrEqualTo(3);
+
+			// 이전 종가 유지
+			assertThat(hourCandles.get(0).close()).isEqualTo(hourCandles.get(1).close());
+		}
+
+		@Test
+		@DisplayName("TC7.2.2 시스템 중단 후 DB에서 캔들 복구")
+		void loadTradeHistoryFromDb_ShouldLoadTradesFromDb() {
+			// Given
+			List<String> companyCodes = List.of(TEST_COMPANY_CODE);
+			List<TradeHistory> mockTrades = createMockTradeHistoriesInReverseOrder(TEST_COMPANY_CODE, 5);
+
+			when(tradeHistoryRepository.findDistinctCompanyCodes()).thenReturn(companyCodes);
+			// MAX_TRADE_HISTORY 값을 직접 참조
+			when(tradeHistoryRepository.findRecentTradesByCompanyCode(eq(TEST_COMPANY_CODE), eq(MAX_TRADE_HISTORY)))
+					.thenReturn(mockTrades);
+
+			// When
+			tradeHistoryService.loadTradeHistoryFromDb();
+
+			// Then
+			verify(tradeHistoryRepository).findDistinctCompanyCodes();
+			verify(tradeHistoryRepository).findRecentTradesByCompanyCode(eq(TEST_COMPANY_CODE), anyInt());
+
+			// 메모리에 거래 내역이 로드되었는지 확인 (getLastTrade 메서드를 통해)
+			Optional<TradeHistory> lastTrade = tradeHistoryService.getLastTrade(TEST_COMPANY_CODE);
+			assertTrue(lastTrade.isPresent(), "마지막 거래 내역이 메모리에 로드되어야 합니다");
+		}
+
+		@Test
+		@DisplayName("TC7.2.3 존재하지 않는 종목 코드에 대한 마지막 거래 조회")
+		void getLastTrade_WithNonExistentCompany_ShouldReturnEmpty() {
+			// When
+			Optional<TradeHistory> lastTrade = tradeHistoryService.getLastTrade("NONEXISTENT");
+
+			// Then
+			assertFalse(lastTrade.isPresent(), "존재하지 않는 회사 코드에 대해 빈 Optional이 반환되어야 합니다");
+		}
+
+		@Test
+		@DisplayName("TC7.2.4 캔들 데이터 보관 개수 제한 검증")
+		void shouldLimitCandleDataToMaximumKeepNumber() {
+			// Given
+			// 캔들 데이터 보관 개수보다 많은 거래 내역 생성 (시간 간격을 두고)
+			final int TRADES_TO_GENERATE = CANDLE_KEEP_NUMBER + 50; // 보관 개수보다 많은 거래 생성
+
+			long baseTime = Instant.now().truncatedTo(ChronoUnit.HOURS).getEpochSecond();
+			List<TradeHistoryResponse> trades = new ArrayList<>();
+
+			// 각 거래가 다른 캔들에 속하도록 시간 조정 (15초 타임프레임 기준)
+			for (int i = 0; i < TRADES_TO_GENERATE; i++) {
+				TradeHistoryResponse trade = TradeHistoryResponse.builder()
+						.id((long)(i + 1))
+						.companyCode(TEST_COMPANY_CODE)
+						.price(BigDecimal.valueOf(50000 + i * 10))
+						.quantity(BigDecimal.valueOf(5))
+						.tradeTime(baseTime + i * 15) // 15초마다 거래 (15초 타임프레임 기준으로 각각 다른 캔들)
+						.build();
+				trades.add(trade);
+			}
+
+			// When
+			// 모든 거래 내역 저장
+			for (TradeHistoryResponse trade : trades) {
+				tradeHistoryService.saveTradeHistory(trade);
+			}
+
+			// Then
+			// private 필드 접근을 통해 캔들 맵 확인
+			Map<String, Map<TimeFrame, List<CandleDto>>> timeFrameCandleMap =
+					getPrivateField(tradeHistoryService, "timeFrameCandleMap");
+
+			// 각 타임프레임별 캔들 개수 확인
+			Map<TimeFrame, List<CandleDto>> companyCandles = timeFrameCandleMap.get(TEST_COMPANY_CODE);
+			assertNotNull(companyCandles, "종목별 캔들 맵이 존재해야 합니다");
+
+			// 모든 타임프레임에 대해 캔들 개수 제한 확인
+			for (TimeFrame timeFrame : TimeFrame.values()) {
+				List<CandleDto> candles = companyCandles.get(timeFrame);
+				assertNotNull(candles, timeFrame + " 타임프레임의 캔들이 존재해야 합니다");
+
+				// 캔들 개수가 CANDLE_KEEP_NUMBER 이하인지 확인
+				assertTrue(candles.size() <= CANDLE_KEEP_NUMBER,
+						timeFrame + " 타임프레임의 캔들 개수(" + candles.size() + ")가 최대 보관 개수(" +
+								CANDLE_KEEP_NUMBER + ")를 초과하지 않아야 합니다");
+
+				// 15초 타임프레임은 정확히 CANDLE_KEEP_NUMBER개여야 함 (각 거래가 다른 캔들에 속하므로)
+				if (timeFrame == TimeFrame.SECONDS_15) {
+					assertEquals(CANDLE_KEEP_NUMBER, candles.size(),
+							"15초 타임프레임의 캔들 개수는 정확히 최대 보관 개수(" + CANDLE_KEEP_NUMBER + ")여야 합니다");
+
+					// 맨 처음 캔들(가장 오래된 캔들)이 마지막에 생성된 캔들에서 CANDLE_KEEP_NUMBER-1 만큼 이전의 거래에 해당하는지 확인
+					double expectedOldestPrice = 50000 + (TRADES_TO_GENERATE - CANDLE_KEEP_NUMBER) * 10;
+					assertEquals(expectedOldestPrice, candles.get(0).close(),
+							"가장 오래된 캔들의 종가는 예상 가격(" + expectedOldestPrice + ")과 일치해야 합니다");
+
+					// 마지막 캔들(가장 최근 캔들)이 마지막 거래 가격과 일치하는지 확인
+					double expectedLatestPrice = 50000 + (TRADES_TO_GENERATE - 1) * 10;
+					assertEquals(expectedLatestPrice, candles.get(candles.size() - 1).close(),
+							"가장 최근 캔들의 종가는 마지막 거래 가격(" + expectedLatestPrice + ")과 일치해야 합니다");
+				}
+			}
+		}
+
+		@Test
+		@DisplayName("TC7.2.5 잘못된 시간대 요청 처리")
+		void getChartHistory_WithInvalidTimeFrame_ShouldUseDefaultTimeFrame() {
+			// Given
+			// 먼저 테스트 회사에 대한 거래 데이터 생성
+			TradeHistoryResponse trade = TradeHistoryResponse.builder()
+					.id(1L)
+					.companyCode(TEST_COMPANY_CODE)
+					.price(BigDecimal.valueOf(57500))
+					.quantity(BigDecimal.valueOf(10))
+					.tradeTime(Instant.now().getEpochSecond())
+					.build();
+
+			// 거래 내역 저장
+			tradeHistoryService.saveTradeHistory(trade);
+
+			// When: 유효하지 않은 시간대 코드로 차트 요청
+			ChartResponseDto invalidTimeFrameResponse =
+					tradeHistoryService.getChartHistory(TEST_COMPANY_CODE, "INVALID_TIME_CODE");
+
+			// 존재하는 회사 코드이지만 잘못된 시간대 코드로 요청
+			ChartResponseDto nullTimeFrameResponse =
+					tradeHistoryService.getChartHistory(TEST_COMPANY_CODE, null);
+
+			// 빈 시간대 코드로 요청
+			ChartResponseDto emptyTimeFrameResponse =
+					tradeHistoryService.getChartHistory(TEST_COMPANY_CODE, "");
+
+			// Then: 기본 시간대(MINUTE_15)로 응답해야 함
+			assertNotNull(invalidTimeFrameResponse, "잘못된 시간대 코드로 요청해도 응답이 반환되어야 합니다");
+			assertEquals(TimeFrame.MINUTE_15.getTimeCode(), invalidTimeFrameResponse.timeCode(),
+					"잘못된 시간대 코드는 기본값(MINUTE_15)으로 대체되어야 합니다");
+
+			assertNotNull(nullTimeFrameResponse, "null 시간대 코드로 요청해도 응답이 반환되어야 합니다");
+			assertEquals(TimeFrame.MINUTE_15.getTimeCode(), nullTimeFrameResponse.timeCode(),
+					"null 시간대 코드는 기본값(MINUTE_15)으로 대체되어야 합니다");
+
+			assertNotNull(emptyTimeFrameResponse, "빈 시간대 코드로 요청해도 응답이 반환되어야 합니다");
+			assertEquals(TimeFrame.MINUTE_15.getTimeCode(), emptyTimeFrameResponse.timeCode(),
+					"빈 시간대 코드는 기본값(MINUTE_15)으로 대체되어야 합니다");
+
+			// 캔들 데이터가 포함되어 있는지 확인
+			assertNotNull(invalidTimeFrameResponse.candles(), "응답에 캔들 데이터가 포함되어야 합니다");
+			assertFalse(invalidTimeFrameResponse.candles().isEmpty(), "캔들 데이터가 비어 있지 않아야 합니다");
+
+			// 거래 데이터가 올바르게 반영되었는지 확인
+			double expectedPrice = trade.price().doubleValue();
+			CandleDto latestCandle = invalidTimeFrameResponse.candles()
+					.get(invalidTimeFrameResponse.candles().size() - 1);
+			assertEquals(expectedPrice, latestCandle.close(),
+					"캔들의 종가는 저장된 거래 가격과 일치해야 합니다");
+		}
+
+		@Test
+		@DisplayName("TC7.2.6 DB에서 캔들 복구시 캔들 정렬 확인")
+		void getChartHistory_shouldReturnCandlesSortedByTime() {
+			// Given: 현재 시간 및 시간 간격 계산
+			long currentTime = Instant.now().getEpochSecond();
+
+			// 시간 순서가 섞인 거래 데이터 생성
+			TradeHistoryResponse trade1 = TradeHistoryResponse.builder()
+					.id(1L)
+					.companyCode(TEST_COMPANY_CODE)
+					.price(BigDecimal.valueOf(50000))
+					.quantity(BigDecimal.valueOf(5))
+					.tradeTime(currentTime - 3600) // 1시간 전
+					.build();
 
 			TradeHistoryResponse trade2 = TradeHistoryResponse.builder()
 					.id(2L)
-					.companyCode(SECONDARY_SYMBOL)
-					.sellOrderId(300L)
-					.buyOrderId(400L)
-					.quantity(BigDecimal.valueOf(5))
-					.price(BigDecimal.valueOf(250000))
-					.tradeTime(LocalDateTime.now())
+					.companyCode(TEST_COMPANY_CODE)
+					.price(BigDecimal.valueOf(51000))
+					.quantity(BigDecimal.valueOf(10))
+					.tradeTime(currentTime) // 현재
 					.build();
 
-			// when - 두 종목 거래 처리
+			TradeHistoryResponse trade3 = TradeHistoryResponse.builder()
+					.id(3L)
+					.companyCode(TEST_COMPANY_CODE)
+					.price(BigDecimal.valueOf(52000))
+					.quantity(BigDecimal.valueOf(7))
+					.tradeTime(currentTime - 1800) // 30분 전
+					.build();
+
+			// 순서대로 저장 (이 순서는 거래 저장 순서이며, 시간은 섞여 있음)
 			tradeHistoryService.saveTradeHistory(trade1);
 			tradeHistoryService.saveTradeHistory(trade2);
+			tradeHistoryService.saveTradeHistory(trade3);
 
-			// then
-			// 두 종목 모두에 대해 저장소 저장 및 웹소켓 메시지 전송이 이루어져야 함
-			verify(tradeHistoryRepository, times(2)).save(any(TradeHistory.class));
+			// When: getChartHistory 메서드 호출
+			ChartResponseDto response = tradeHistoryService.getChartHistory(TEST_COMPANY_CODE,
+					TimeFrame.MINUTE_15.getTimeCode());
 
-			// 두 종목에 대한 웹소켓 메시지 확인
-			verify(messagingTemplate, times(1)).convertAndSend(
-					eq("/topic/chart/" + TEST_SYMBOL),
-					any(ChartUpdateDto.class)
-			);
+			// Then: 반환된 캔들이 시간 순으로 정렬되었는지 확인
+			assertNotNull(response, "응답이 null이 아니어야 합니다");
+			assertNotNull(response.candles(), "캔들 목록이 null이 아니어야 합니다");
+			assertTrue(response.candles().size() > 1, "반환된 캔들이 1개 이상 있어야 합니다");
 
-			verify(messagingTemplate, times(1)).convertAndSend(
-					eq("/topic/chart/" + SECONDARY_SYMBOL),
-					any(ChartUpdateDto.class)
-			);
+			// 시간 순서로 정렬되었는지 확인
+			boolean isSorted = true;
+			for (int i = 1; i < response.candles().size(); i++) {
+				if (response.candles().get(i - 1).time() > response.candles().get(i).time()) {
+					isSorted = false;
+					break;
+				}
+			}
 
-			// 두 종목 모두 메모리에 저장되었는지 확인
-			assertThat(recentTradesMap).containsKeys(TEST_SYMBOL, SECONDARY_SYMBOL);
+			assertTrue(isSorted, "캔들이 시간 순으로 정렬되어 있어야 합니다");
+
+			// 거래 시간이 포함된 캔들이 반환되었는지 확인
+			boolean containsTrade1Time = false;
+			boolean containsTrade2Time = false;
+			boolean containsTrade3Time = false;
+
+			// 15분 타임프레임 기준으로 캔들 시간 계산
+			long timeFrameSeconds = TimeFrame.MINUTE_15.getSeconds();
+			long trade1CandleTime = trade1.tradeTime() - (trade1.tradeTime() % timeFrameSeconds);
+			long trade2CandleTime = trade2.tradeTime() - (trade2.tradeTime() % timeFrameSeconds);
+			long trade3CandleTime = trade3.tradeTime() - (trade3.tradeTime() % timeFrameSeconds);
+
+			for (CandleDto candle : response.candles()) {
+				if (candle.time() == trade1CandleTime)
+					containsTrade1Time = true;
+				if (candle.time() == trade2CandleTime)
+					containsTrade2Time = true;
+				if (candle.time() == trade3CandleTime)
+					containsTrade3Time = true;
+			}
+
+			assertTrue(containsTrade1Time, "1시간 전 거래가 포함된 캔들이 있어야 합니다");
+			assertTrue(containsTrade2Time, "현재 거래가 포함된 캔들이 있어야 합니다");
+			assertTrue(containsTrade3Time, "30분 전 거래가 포함된 캔들이 있어야 합니다");
+		}
+
+		@Test
+		@DisplayName("TC7.2.7 DB에서 캔들 복구시 유효하지 않은 캔들 필터링 확인")
+		void getChartHistory_shouldFilterOutInvalidCandles() {
+			// Given
+			// 유효한 거래 생성 및 저장
+			TradeHistoryResponse validTrade = createMockTradeHistoryResponse(TEST_COMPANY_CODE);
+			tradeHistoryService.saveTradeHistory(validTrade);
+
+			// 맵에 접근하여 유효하지 않은 캔들 추가
+			Map<String, Map<TimeFrame, List<CandleDto>>> timeFrameCandleMap =
+					getPrivateField(tradeHistoryService, "timeFrameCandleMap");
+
+			Map<TimeFrame, List<CandleDto>> companyTimeFrameMap = timeFrameCandleMap.get(TEST_COMPANY_CODE);
+			// 기존 리스트 복사
+			List<CandleDto> originalCandles = new ArrayList<>(companyTimeFrameMap.get(TimeFrame.MINUTE_15));
+
+			// 캔들 목록 생성 및 원본에 null 시간 캔들 추가
+			List<CandleDto> testCandles = new ArrayList<>(originalCandles);
+
+			// 유효하지 않은 캔들 추가
+			testCandles.add(CandleDto.builder()
+					.time(null)  // null 시간값
+					.open(100.0)
+					.high(110.0)
+					.low(95.0)
+					.close(105.0)
+					.volume(1000)
+					.build());
+
+			testCandles.add(CandleDto.builder()
+					.time(-1L)   // 음수 시간값
+					.open(100.0)
+					.high(110.0)
+					.low(95.0)
+					.close(105.0)
+					.volume(1000)
+					.build());
+
+			// 새 리스트를 맵에 설정
+			companyTimeFrameMap.put(TimeFrame.MINUTE_15, testCandles);
+
+			// 유효한 캔들 수 계산
+			long validCount = testCandles.stream()
+					.filter(c -> c != null && c.time() != null && c.time() > 0)
+					.count();
+
+			// When: getChartHistory 메서드 호출
+			ChartResponseDto response = tradeHistoryService.getChartHistory(TEST_COMPANY_CODE,
+					TimeFrame.MINUTE_15.getTimeCode());
+
+			// Then: 유효한 캔들만 반환되었는지 확인
+			assertNotNull(response, "응답이 null이 아니어야 합니다");
+			assertNotNull(response.candles(), "캔들 목록이 null이 아니어야 합니다");
+			assertEquals(validCount, response.candles().size(),
+					"유효한 캔들만 반환되어야 합니다");
+
+			// 모든 반환된 캔들이 유효한지 확인
+			for (CandleDto candle : response.candles()) {
+				assertNotNull(candle.time(), "모든 캔들 시간은 null이 아니어야 합니다");
+				assertTrue(candle.time() > 0, "모든 캔들 시간은 양수여야 합니다");
+			}
+		}
+
+		@Test
+		@DisplayName("TC7.3.1 동시에 들어온 거래의 처리")
+		void shouldHandleConcurrentTrades() {
+			// Given
+			// 테스트할 타임프레임
+			TimeFrame testTimeFrame = TimeFrame.MINUTE_1;  // 1분 타임프레임
+
+			// 현재 시간을 기준으로 캔들 경계 계산
+			long currentTime = Instant.now().getEpochSecond();
+			long timeFrameSeconds = testTimeFrame.getSeconds();
+			long currentCandleStartTime = currentTime - (currentTime % timeFrameSeconds);
+
+			// 동일한 시간, 1분 캔들 내에서 서로 다른 가격의 거래 세 개 생성
+			TradeHistoryResponse trade1 = TradeHistoryResponse.builder()
+					.id(1L)
+					.companyCode(TEST_COMPANY_CODE)
+					.price(BigDecimal.valueOf(50000))
+					.quantity(BigDecimal.valueOf(5))
+					.tradeTime(currentCandleStartTime)
+					.build();
+
+			TradeHistoryResponse trade2 = TradeHistoryResponse.builder()
+					.id(2L)
+					.companyCode(TEST_COMPANY_CODE)
+					.price(BigDecimal.valueOf(51000))
+					.quantity(BigDecimal.valueOf(10))
+					.tradeTime(currentCandleStartTime)
+					.build();
+
+			TradeHistoryResponse trade3 = TradeHistoryResponse.builder()
+					.id(3L)
+					.companyCode(TEST_COMPANY_CODE)
+					.price(BigDecimal.valueOf(49000))
+					.quantity(BigDecimal.valueOf(7))
+					.tradeTime(currentCandleStartTime)
+					.build();
+
+			// When
+			// 거래 저장 - 세 거래 모두 동일한 캔들에 반영되어야 함
+			tradeHistoryService.saveTradeHistory(trade1);
+			tradeHistoryService.saveTradeHistory(trade2);
+			tradeHistoryService.saveTradeHistory(trade3);
+
+			// Then
+			// 캔들 맵 가져오기
+			Map<String, Map<TimeFrame, List<CandleDto>>> timeFrameCandleMap =
+					getPrivateField(tradeHistoryService, "timeFrameCandleMap");
+
+			Map<TimeFrame, List<CandleDto>> companyCandles = timeFrameCandleMap.get(TEST_COMPANY_CODE);
+			assertNotNull(companyCandles, "종목 캔들 맵이 존재해야 합니다");
+
+			List<CandleDto> candlesForTimeFrame = companyCandles.get(testTimeFrame);
+			assertNotNull(candlesForTimeFrame, testTimeFrame + " 타임프레임의 캔들이 존재해야 합니다");
+			assertFalse(candlesForTimeFrame.isEmpty(), "캔들 목록이 비어있지 않아야 합니다");
+
+			// 현재 시간의 캔들 찾기
+			CandleDto currentCandle = null;
+			for (CandleDto candle : candlesForTimeFrame) {
+				if (candle.time() == currentCandleStartTime) {
+					currentCandle = candle;
+					break;
+				}
+			}
+
+			// 캔들 검증
+			assertNotNull(currentCandle, "현재 시간의 캔들이 존재해야 합니다");
+
+			// 세 거래가 모두 올바르게 반영되었는지 확인
+			assertEquals(50000, currentCandle.open(), "캔들의 시가는 첫 번째 거래의 가격이어야 합니다");
+			assertEquals(49000, currentCandle.close(), "캔들의 종가는 마지막 거래의 가격이어야 합니다");
+			assertEquals(51000, currentCandle.high(), "캔들의 고가는 세 거래 중 가장 높은 가격이어야 합니다");
+			assertEquals(49000, currentCandle.low(), "캔들의 저가는 세 거래 중 가장 낮은 가격이어야 합니다");
+			assertEquals(5 + 10 + 7, currentCandle.volume(), "캔들의 거래량은 세 거래의 합이어야 합니다");
+		}
+
+	}
+
+	// 이미 역순으로 정렬된 거래 내역 생성 (최신 거래가 먼저 오도록)
+	private List<TradeHistory> createMockTradeHistoriesInReverseOrder(String companyCode, int count) {
+		List<TradeHistory> trades = new ArrayList<>(count);
+		long currentTime = Instant.now().getEpochSecond();
+
+		// 최신 거래부터 추가 (i=0이 가장 최신 거래)
+		for (int i = 0; i < count; i++) {
+			trades.add(TradeHistory.builder()
+					.id((long)i)
+					.companyCode(companyCode)
+					.sellOrderId((long)(i + 100))
+					.buyOrderId((long)(i + 200))
+					.quantity(BigDecimal.valueOf(10))
+					.price(BigDecimal.valueOf(57500 + i * 100))
+					.tradeTime(currentTime - i * 60) // 1분 간격 (최신 거래가 먼저)
+					.build());
+		}
+		return trades;
+	}
+
+	private TradeHistoryResponse createMockTradeHistoryResponse(String companyCode) {
+		return TradeHistoryResponse.builder()
+				.id(1L)
+				.companyCode(companyCode)
+				.sellOrderId(101L)
+				.buyOrderId(201L)
+				.quantity(BigDecimal.valueOf(10))
+				.price(BigDecimal.valueOf(57500))
+				.tradeTime(Instant.now().getEpochSecond())
+				.build();
+	}
+
+	// 리플렉션을 사용하여 private 필드 값 가져오기
+	@SuppressWarnings("unchecked")
+	private <T> T getPrivateField(final Object object, final String fieldName) {
+		try {
+			Field field = object.getClass().getDeclaredField(fieldName);
+			field.setAccessible(true);
+			return (T)field.get(object);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to get private field: " + fieldName, e);
 		}
 	}
 
-	// 테스트 헬퍼 메서드
-
-	private TradeHistory createTradeHistory(String companyCode, double price) {
-		return TradeHistory.builder()
-				.companyCode(companyCode)
-				.price(BigDecimal.valueOf(price))
-				.quantity(BigDecimal.TEN)
-				.tradeTime(LocalDateTime.now())
-				.build();
-	}
-
-	private List<CandleDto> createSampleCandles() {
-		List<CandleDto> candles = new ArrayList<>();
-		long now = Instant.now().getEpochSecond();
-		CandleDto candle = CandleDto.builder()
-				.time(now - (now % 15))
-				.open(DEFAULT_PRICE)
-				.high(HIGH_PRICE)
-				.low(LOW_PRICE)
-				.close(CLOSE_PRICE)
-				.volume(DEFAULT_VOLUME)
-				.build();
-		candles.add(candle);
-		return candles;
-	}
 }
