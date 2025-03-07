@@ -2,7 +2,6 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.2'
     id 'io.spring.dependency-management' version '1.1.7'
-    id 'jacoco' // Jacoco Plugin 추가
 }
 
 group = 'org.scoula'
@@ -44,7 +43,7 @@ dependencies {
     implementation 'com.googlecode.json-simple:json-simple:1.1.1'
 
     // Swagger-ui
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.0.2'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'
 
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -56,28 +55,8 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-jacoco {
-    toolVersion = '0.8.12' // Jacoco 버전 지정 (최신 버전)
-}
-
 tasks.named('test') {
     useJUnitPlatform()
-    finalizedBy 'jacocoTestReport' // test 태스크가 끝난 후 실행
-}
-
-// jacoco Report 생성
-jacocoTestReport {
-    dependsOn test // test 종속성 추가
-
-    reports {
-        xml.required = true
-        csv.required = true
-        html.required = true
-
-//        xml.destination file(project.layout.buildDirectory.dir("jacoco/index.xml")) as File
-//        csv.destination file(project.layout.buildDirectory.dir("jacoco/index.csv")) as File
-//        html.destination file(project.layout.buildDirectory.dir("jacoco/index.html")) as File
-    }
 }
 
 
