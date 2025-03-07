@@ -58,8 +58,8 @@ public class Order extends BaseEntity {
 	private BigDecimal price;
 
 	@ManyToOne(fetch = LAZY)
-	@JoinColumn(name = "account_id", nullable = true)
-	private Account account = null;
+	@JoinColumn(name = "account_id", nullable = false)
+	private Account account;
 
 	@Column(nullable = false)
 	private LocalDateTime timestamp;

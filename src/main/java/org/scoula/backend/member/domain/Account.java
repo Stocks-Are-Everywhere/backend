@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 
 import org.scoula.backend.global.entity.BaseEntity;
 import org.scoula.backend.member.exception.InsufficientBalanceException;
+import org.scoula.backend.order.domain.Type;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -54,10 +55,6 @@ public class Account extends BaseEntity {
 		this.reservcedBalance = this.reservcedBalance.add(amount);
 	}
 
-	public void removePendingOrderBalance(final BigDecimal amount) {
-		this.reservcedBalance = this.reservcedBalance.subtract(amount);
-	}
-
 	public BigDecimal availableBalance() {
 		return this.balance.subtract(this.reservcedBalance);
 	}
@@ -67,23 +64,28 @@ public class Account extends BaseEntity {
 		return this.balance.compareTo(amount) >= 0;
 	}
 
-	public void processBuyOrder(final BigDecimal amount) {
+	private void processBuyOrder(final BigDecimal amount) {
 		validateDepositBalance(amount);
+		this.reservcedBalance = this.reservcedBalance.subtract(amount);
 		this.balance = this.balance.subtract(amount);
 	}
 
-
-	public void processSellOrder(final BigDecimal amount) {
+	private void processSellOrder(final BigDecimal amount) {
 		this.balance = this.balance.add(amount);
 	}
 
+	public void processOrder(final Type type, final BigDecimal amount) {
+		if (type.equals(Type.BUY)) {
+			processBuyOrder(amount);
+		} else {
+			processSellOrder(amount);
+		}
+	}
 
 	public void validateDepositBalance(final BigDecimal amount) {
 		final BigDecimal availableBalance = availableBalance();
 		if (availableBalance.compareTo(amount) < 0) {
-			throw new InsufficientBalanceException(
-					String.format("주문금액(%s)이 주문가능금액(%s)을 초과합니다",
-							amount, this.balance));
+			throw new InsufficientBalanceException("사용자 잔액이 부족합니다.");
 		}
 	}
 }

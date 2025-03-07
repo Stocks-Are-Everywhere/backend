@@ -10,6 +10,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.TreeMap;
 
+import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
 import org.scoula.backend.order.controller.response.OrderSummaryResponse;
@@ -205,6 +206,10 @@ public class OrderBookService {
 			// 수량 업데이트
 			incomingOrder.updateQuantity(matchedQuantity);
 			existingOrder.updateQuantity(matchedQuantity);
+
+			// 체결 가격 기준으로 계좌 금액 처리
+			Account account = incomingOrder.getAccount();
+			account.processOrder(incomingOrder.getType(), incomingOrder.getPrice().multiply(matchedQuantity));
 
 			// 완전 체결된 주문 제거
 			if (existingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {

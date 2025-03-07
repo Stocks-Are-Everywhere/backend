@@ -1,7 +1,6 @@
 package org.scoula.backend.order.service;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -72,6 +71,7 @@ public class OrderService {
 		validateClosingPrice(price, request.companyCode());
 
 		final Order order = createOrder(request, username);
+		account.addPendingOrderBalance(order.getPrice().multiply(order.getTotalQuantity()));
 
 		// 주문 처리
 		processOrder(order);

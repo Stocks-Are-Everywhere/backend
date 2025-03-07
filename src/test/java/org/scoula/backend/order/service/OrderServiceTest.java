@@ -18,7 +18,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.member.domain.Company;
+import org.scoula.backend.member.domain.Member;
+import org.scoula.backend.member.domain.MemberRoleEnum;
+import org.scoula.backend.member.exception.InsufficientBalanceException;
 import org.scoula.backend.member.exception.MemberNotFoundException;
 import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
 import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
@@ -28,7 +32,9 @@ import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
 import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.Type;
+import org.scoula.backend.order.repository.OrderRepositoryImpl;
 import org.scoula.backend.order.service.exception.MatchingException;
+import org.scoula.backend.order.service.exception.OrderPriceQuotationException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,12 +59,15 @@ class OrderServiceTest {
 	@Mock
 	TradeHistoryService tradeHistoryService;
 
+	@Mock
+	OrderRepositoryImpl orderRepository;
+
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
 
 		orderService = new OrderService(messagingTemplate, tradeHistoryService, companyRepository, accountRepository,
-			memberRepository);
+			memberRepository, orderRepository);
 	}
 
 	@Test
@@ -247,5 +256,31 @@ class OrderServiceTest {
 			price,
 			1L
 		);
+	}
+	@Test
+	@DisplayName("매도 주문 시 보유 주식이 없다면 예외를 반환한다.")
+	void orderFailedWhenUserHasNoStock() {}
+
+	@Test
+	@DisplayName("매도 주문 시 주문 가능한 매도 수량을 초과하면 예외를 반환한다.")
+	void orderFailedWhenSellOrderQuantityExceedsAvailableQuantity() {}
+
+	@Test
+	@DisplayName("매수 주문 시 사용자 잔액이 부족한 경우 예외를 반환한다.")
+	void orderFailedWhenUserHasNotEnoughBalance() {
+		// given
+		Member member = Member.builder()
+						.googleId("123456")
+						.email("test@example.com")
+						.role(MemberRoleEnum.USER)
+                		.build();
+		member.createAccount();
+		when(memberRepository.getByUsername(any())).thenReturn(member);
+		OrderRequest request = createOrderRequest(Type.BUY, new BigDecimal(500), new BigDecimal(10000000));
+
+		// when, then
+		assertThatThrownBy(() -> orderService.placeOrder(request, "username"))
+			.isInstanceOf(InsufficientBalanceException.class)
+			.hasMessage("사용자 잔액이 부족합니다.");
 	}
 }

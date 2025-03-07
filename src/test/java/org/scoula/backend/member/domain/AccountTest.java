@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.scoula.backend.member.exception.InsufficientBalanceException;
+import org.scoula.backend.order.domain.Type;
 
 public class AccountTest {
 
@@ -54,7 +55,7 @@ public class AccountTest {
         BigDecimal expectedBalance = new BigDecimal("70000000");
 
         // when
-        account.processBuyOrder(amountToBuy);
+        account.processOrder(Type.BUY, amountToBuy);
 
         // then
         assertThat(account.getBalance()).isEqualTo(expectedBalance);
@@ -67,7 +68,7 @@ public class AccountTest {
         BigDecimal amountToBuy = new BigDecimal("150000000");
 
         // when & then
-        assertThatThrownBy(() -> account.processBuyOrder(amountToBuy))
+        assertThatThrownBy(() -> account.processOrder(Type.BUY, amountToBuy))
                 .isInstanceOf(InsufficientBalanceException.class)
                 .hasMessageContaining("주문금액")
                 .hasMessageContaining("주문가능금액")
@@ -82,7 +83,7 @@ public class AccountTest {
         BigDecimal expectedBalance = new BigDecimal("130000000");
 
         // when
-        account.processSellOrder(amountToSell);
+        account.processOrder(Type.SELL, amountToSell);
 
         // then
         assertThat(account.getBalance()).isEqualTo(expectedBalance);
