@@ -1,7 +1,7 @@
 package org.scoula.backend.order.service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -49,11 +49,17 @@ public class OrderBookService {
 	 * 주문 접수 및 처리
 	 */
 	public void received(final Order order) throws MatchingException {
+		log.info("주문 접수 - 종목: {}, 주문ID: {}, 타입: {}, 가격: {}, 수량: {}",
+				companyCode, order.getId(), order.getType(), order.getPrice(), order.getTotalQuantity());
+
 		if (order.getStatus() == OrderStatus.MARKET) {
 			processMarketOrder(order);
 		} else {
 			processLimitOrder(order);
 		}
+
+		log.info("주문 처리 완료 - 주문ID: {}, 잔여수량: {}",
+				order.getId(), order.getRemainingQuantity());
 	}
 
 	/**
@@ -183,11 +189,11 @@ public class OrderBookService {
 	 */
 	private void matchOrders(final Queue<Order> existingOrders, final Order incomingOrder) {
 		while (!existingOrders.isEmpty() &&
-			incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
+				incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			final Order existingOrder = existingOrders.peek();
 
 			final BigDecimal matchedQuantity = incomingOrder.getRemainingQuantity()
-				.min(existingOrder.getRemainingQuantity());
+					.min(existingOrder.getRemainingQuantity());
 
 			// 거래 내역 생성 및 저장
 			TradeHistoryResponse tradeHistory = mapToTradeHistory(incomingOrder, existingOrder, matchedQuantity);
@@ -214,7 +220,7 @@ public class OrderBookService {
 					.buyOrderId(existingOrder.getId())
 					.quantity(matchedQuantity)
 					.price(existingOrder.getPrice())
-					.tradeTime(LocalDateTime.now())
+					.tradeTime(Instant.now().getEpochSecond())
 					.build();
 		}
 		return TradeHistoryResponse.builder()
@@ -223,7 +229,7 @@ public class OrderBookService {
 				.buyOrderId(incomingOrder.getId())
 				.quantity(matchedQuantity)
 				.price(existingOrder.getPrice())
-				.tradeTime(LocalDateTime.now())
+				.tradeTime(Instant.now().getEpochSecond())
 				.build();
 	}
 
@@ -256,11 +262,13 @@ public class OrderBookService {
 	 * 호가창 생성
 	 */
 	public OrderBookResponse getBook() {
+		final List<PriceLevelDto> sellLevels = createAskLevels();
+		final List<PriceLevelDto> buyLevels = createBidLevels();
 		return OrderBookResponse.builder()
-			.companyCode(companyCode)
-			.sellLevels(createAskLevels())
-			.buyLevels(createBidLevels())
-			.build();
+				.companyCode(companyCode)
+				.sellLevels(sellLevels)
+				.buyLevels(buyLevels)
+				.build();
 	}
 
 	/**
@@ -268,11 +276,10 @@ public class OrderBookService {
 	 */
 	private List<PriceLevelDto> createAskLevels() {
 		return this.sellOrders.entrySet().stream()
-			.limit(10)
-			.sorted(Map.Entry.<BigDecimal, Queue<Order>>comparingByKey().reversed()) // 역순 정렬
-			.map(entry -> new PriceLevelDto(
-				entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
-			).toList();
+				.limit(10)
+				.map(entry -> new PriceLevelDto(
+						entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
+				).toList();
 	}
 
 	/**
@@ -280,10 +287,10 @@ public class OrderBookService {
 	 */
 	private List<PriceLevelDto> createBidLevels() {
 		return this.buyOrders.entrySet().stream()
-			.limit(10)
-			.map(entry -> new PriceLevelDto(
-				entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
-			).toList();
+				.limit(10)
+				.map(entry -> new PriceLevelDto(
+						entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
+				).toList();
 	}
 
 	/**
@@ -291,8 +298,8 @@ public class OrderBookService {
 	 */
 	private BigDecimal calculateTotalQuantity(Queue<Order> orders) {
 		return orders.stream()
-			.map(Order::getRemainingQuantity)
-			.reduce(BigDecimal.ZERO, BigDecimal::add);
+				.map(Order::getRemainingQuantity)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
 	}
 
 	/**
@@ -300,9 +307,9 @@ public class OrderBookService {
 	 */
 	public OrderSummaryResponse getSummary() {
 		return new OrderSummaryResponse(
-			companyCode,
-			getOrderVolumeStats(sellOrders),
-			getOrderVolumeStats(buyOrders)
+				companyCode,
+				getOrderVolumeStats(sellOrders),
+				getOrderVolumeStats(buyOrders)
 		);
 	}
 
@@ -311,7 +318,7 @@ public class OrderBookService {
 	 */
 	public Integer getOrderVolumeStats(final TreeMap<BigDecimal, Queue<Order>> orderMap) {
 		return orderMap.values().stream()
-			.mapToInt(Queue::size)
-			.sum();
+				.mapToInt(Queue::size)
+				.sum();
 	}
 }

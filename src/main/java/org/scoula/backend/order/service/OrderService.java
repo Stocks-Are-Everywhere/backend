@@ -81,7 +81,6 @@ public class OrderService {
 		return new OrderDto(request).to(account);
 	}
 
-	// 주문 처리
 	private void processOrder(final Order order) throws MatchingException {
 		final OrderBookService orderBook = addOrderBook(order.getCompanyCode());
 		orderBook.received(order);
