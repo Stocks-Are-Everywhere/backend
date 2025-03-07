@@ -63,6 +63,42 @@ public class OrderBookService {
 	}
 
 	/**
+	 * 호가창 생성
+	 */
+	public OrderBookResponse getBook() {
+		final List<PriceLevelDto> sellLevels = createAskLevels();
+		final List<PriceLevelDto> buyLevels = createBidLevels();
+		return OrderBookResponse.builder()
+				.companyCode(companyCode)
+				.sellLevels(sellLevels)
+				.buyLevels(buyLevels)
+				.build();
+	}
+
+	/**
+	 * 매도 호가창 정보 생성
+	 */
+	private List<PriceLevelDto> createAskLevels() {
+		return this.sellOrders.entrySet().stream()
+				.limit(10)
+				.sorted(Map.Entry.<BigDecimal, Queue<Order>>comparingByKey().reversed()) // 역순 정렬
+				.map(entry -> new PriceLevelDto(
+						entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
+				).toList();
+	}
+
+	/**
+	 * 매수 호가창 정보 생성
+	 */
+	private List<PriceLevelDto> createBidLevels() {
+		return this.buyOrders.entrySet().stream()
+				.limit(10)
+				.map(entry -> new PriceLevelDto(
+						entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
+				).toList();
+	}
+
+	/**
 	 * 시장가 주문 처리
 	 */
 	private void processMarketOrder(final Order order) throws MatchingException {
@@ -195,6 +231,7 @@ public class OrderBookService {
 			final BigDecimal matchedQuantity = incomingOrder.getRemainingQuantity()
 					.min(existingOrder.getRemainingQuantity());
 
+
 			final TradeHistoryResponse tradeHistory = TradeHistoryResponse.builder()
 					.companyCode(existingOrder.getCompanyCode())
 					.sellOrderId((long)123)
@@ -247,12 +284,10 @@ public class OrderBookService {
 	 * 호가창 생성
 	 */
 	public OrderBookResponse getBook() {
-		final List<PriceLevelDto> sellLevels = createAskLevels();
-		final List<PriceLevelDto> buyLevels = createBidLevels();
 		return OrderBookResponse.builder()
 				.companyCode(companyCode)
-				.sellLevels(sellLevels)
-				.buyLevels(buyLevels)
+				.sellLevels(createAskLevels())
+				.buyLevels(createBidLevels())
 				.build();
 	}
 
