@@ -1,7 +1,6 @@
 package org.scoula.backend.order.controller.response;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 import lombok.Builder;
 
@@ -13,6 +12,6 @@ public record TradeHistoryResponse(
 		Long buyOrderId,
 		BigDecimal quantity,
 		BigDecimal price,
-		LocalDateTime tradeTime
+		Long tradeTime
 ) {
 }
