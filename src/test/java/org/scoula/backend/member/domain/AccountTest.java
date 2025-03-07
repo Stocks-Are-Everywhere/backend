@@ -70,7 +70,7 @@ public class AccountTest {
         assertThatThrownBy(() -> account.processBuyOrder(amountToBuy))
                 .isInstanceOf(InsufficientBalanceException.class)
                 .hasMessageContaining("주문금액")
-                .hasMessageContaining("예수금잔액")
+                .hasMessageContaining("주문가능금액")
                 .hasMessageContaining("초과");
     }
 

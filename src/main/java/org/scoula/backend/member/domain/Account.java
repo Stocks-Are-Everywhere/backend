@@ -37,6 +37,9 @@ public class Account extends BaseEntity {
 	@Column(nullable = false)
 	private BigDecimal balance;
 
+	@Column(nullable = false)
+	private BigDecimal reservcedBalance;
+
 	@OneToOne(fetch = LAZY)
 	@JoinColumn(name = "member_id", nullable = false)
 	private Member member;
@@ -44,7 +47,20 @@ public class Account extends BaseEntity {
     public Account(final Member member) {
         this.member = member;
         this.balance = new BigDecimal("100000000");  // 초기 잔액 설정
+		this.reservcedBalance = new BigDecimal("0");
     }
+
+	public void addPendingOrderBalance(final BigDecimal amount) {
+		this.reservcedBalance = this.reservcedBalance.add(amount);
+	}
+
+	public void removePendingOrderBalance(final BigDecimal amount) {
+		this.reservcedBalance = this.reservcedBalance.subtract(amount);
+	}
+
+	public BigDecimal availableBalance() {
+		return this.balance.subtract(this.reservcedBalance);
+	}
 
 
 	public boolean hasEnoughBalance(final BigDecimal amount) {
@@ -62,10 +78,11 @@ public class Account extends BaseEntity {
 	}
 
 
-	private void validateDepositBalance(final BigDecimal amount) {
-		if (this.balance.compareTo(amount) < 0) {
+	public void validateDepositBalance(final BigDecimal amount) {
+		final BigDecimal availableBalance = availableBalance();
+		if (availableBalance.compareTo(amount) < 0) {
 			throw new InsufficientBalanceException(
-					String.format("주문금액(%s)이 예수금잔액(%s)을 초과합니다",
+					String.format("주문금액(%s)이 주문가능금액(%s)을 초과합니다",
 							amount, this.balance));
 		}
 	}

@@ -1,7 +1,9 @@
 package org.scoula.backend.order.service;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.scoula.backend.member.domain.Account;
@@ -16,8 +18,12 @@ import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
 import org.scoula.backend.order.controller.response.OrderSummaryResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.domain.Order;
+import org.scoula.backend.order.domain.OrderStatus;
+import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.OrderDto;
+import org.scoula.backend.order.repository.OrderRepositoryImpl;
 import org.scoula.backend.order.service.exception.MatchingException;
+import org.scoula.backend.order.service.exception.OrderRejectedException;
 import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
 import org.scoula.backend.order.service.validator.OrderValidator;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -45,9 +51,18 @@ public class OrderService {
 
 	private final MemberRepositoryImpl memberRepository;
 
+	private final OrderRepositoryImpl orderRepository;
+
 	// 지정가 주문
 	@Transactional
 	public void placeOrder(final OrderRequest request, final String username) throws MatchingException {
+		Account account = memberRepository.getByUsername(username).getAccount();
+		// 매수 주문 시 주문 가능한 잔액이 있는지 검증
+		validateBuyOrderBalance(account, request.price().multiply(request.totalQuantity()));
+
+		// 매도 주문 시 주문 가능한 수량인지 검증
+		validateSellOrderQuantity(account, request.totalQuantity(), request.companyCode());
+
 		// 지정가 주문 가격 견적 유효성 검증
 		final BigDecimal price = request.price();
 		final OrderValidator validator = OrderValidator.getUnitByPrice(price);
@@ -60,6 +75,54 @@ public class OrderService {
 
 		// 주문 처리
 		processOrder(order);
+	}
+
+	// 매수 주문시 주문 가능한 잔액이 있는지 검증
+	private void validateBuyOrderBalance(final Account account, final BigDecimal totalOrderPrice) {
+		account.validateDepositBalance(totalOrderPrice);
+	}
+
+	// 매도 주문시 주문 가능한 수량인지 검증
+	private void validateSellOrderQuantity(final Account account, final BigDecimal orderQuantity, final String companyCode) {
+		// 1. 보유한 매수 주문 수량 확인
+		final Optional<List<Order>> activeBuyOrders = orderRepository
+			.findByTypeAndCompanyCodeAndAccountIdAndStatus(
+				Type.BUY,
+				companyCode,
+				account.getId(),
+				OrderStatus.COMPLETE // TODO: 지금 보유주식 아닐 가능성 높음. 수정안 논의 필요. 체결기록으로 사용도 동일함
+			);
+
+		if (activeBuyOrders.isEmpty()) {
+			throw new OrderRejectedException("판매 가능한 보유 주식이 없습니다.");
+		}
+
+		// 2.보유 주문의 총 잔여 수량 계산
+		// TODO: 지금 보유주식 아닐 가능성 높음. 수정안 논의 필요. 체결기록으로 사용도 동일함
+		BigDecimal totalBuyQuantity = activeBuyOrders
+			.map(orders -> orders.stream()
+				.map(Order::getRemainingQuantity)
+				.reduce(BigDecimal.ZERO, BigDecimal::add))
+			.orElse(BigDecimal.ZERO);
+
+		// 3. 기존 매도 예약 수량 계산
+		BigDecimal reservedSellQuantity = orderRepository
+			.findByTypeAndCompanyCodeAndAccountIdAndStatus(
+				Type.SELL,
+				companyCode,
+				account.getId(),
+				OrderStatus.ACTIVE
+			)
+			.map(orders -> orders.stream()
+				.map(Order::getRemainingQuantity)
+				.reduce(BigDecimal.ZERO, BigDecimal::add))
+			.orElse(BigDecimal.ZERO);
+
+		// 4. 주문 가능 수량 검증
+		BigDecimal availableQuantity = totalBuyQuantity.subtract(reservedSellQuantity);
+		if (availableQuantity.compareTo(orderQuantity) < 0) {
+			throw new OrderRejectedException("주문 가능 수량을 초과했습니다.");
+		}
 	}
 
 	// 종가 기준 가격 검증

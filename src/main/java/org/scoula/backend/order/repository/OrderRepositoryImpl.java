@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.scoula.backend.order.domain.Order;
+import org.scoula.backend.order.domain.OrderStatus;
+import org.scoula.backend.order.domain.Type;
 import org.springframework.stereotype.Repository;
 
 import lombok.RequiredArgsConstructor;
@@ -22,7 +24,8 @@ public class OrderRepositoryImpl {
 		return orderJpaRepository.findById(id);
 	}
 
-	public List<Order> findByCompanyCode(String number) {
-		return null;
+	public Optional<List<Order>> findByTypeAndCompanyCodeAndAccountIdAndStatus(Type type, String companyCode, Long accountId, OrderStatus status) {
+		 return orderJpaRepository.findByTypeAndCompanyCodeAndAccountIdAndStatus(type, companyCode, accountId, status);
 	}
+
 }
