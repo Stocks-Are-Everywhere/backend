@@ -268,7 +268,7 @@ public class KisWebSocketClient {
 						.accountId(1L)
 						.build();
 
-				orderService.placeOrder(request);
+//				orderService.placeOrder(request);
 			}
 
 			// 매수 호가
@@ -286,7 +286,7 @@ public class KisWebSocketClient {
 						.accountId(1L)
 						.build();
 
-				orderService.placeOrder(request);
+//				orderService.placeOrder(request);
 			}
 		} catch (Exception e) {
 			log.error("Error handling hoga data message: {}", e.getMessage());
