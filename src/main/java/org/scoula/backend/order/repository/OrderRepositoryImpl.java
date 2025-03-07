@@ -14,15 +14,15 @@ public class OrderRepositoryImpl {
 
 	private final OrderJpaRepository orderJpaRepository;
 
-	public Order save(Order order) {
+	public Order save(final Order order) {
 		return orderJpaRepository.save(order);
 	}
 
-	public Optional<Order> findById(Long id) {
+	public Optional<Order> findById(final Long id) {
 		return orderJpaRepository.findById(id);
 	}
 
-	public List<Order> findByCompanyCode(String number) {
+	public List<Order> findByCompanyCode(final String number) {
 		return null;
 	}
 }

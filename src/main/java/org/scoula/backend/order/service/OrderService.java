@@ -17,6 +17,7 @@ import org.scoula.backend.order.controller.response.OrderSummaryResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.dto.OrderDto;
+import org.scoula.backend.order.repository.OrderRepositoryImpl;
 import org.scoula.backend.order.service.exception.CompanyNotFound;
 import org.scoula.backend.order.service.exception.MatchingException;
 import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
@@ -45,6 +46,7 @@ public class OrderService {
 	private final AccountRepositoryImpl accountRepository;
 
 	private final MemberRepositoryImpl memberRepository;
+	private final OrderRepositoryImpl orderRepositoryImpl;
 
 	// 지정가 주문
 	@Transactional
@@ -58,6 +60,7 @@ public class OrderService {
 		validateClosingPrice(price, request.companyCode());
 
 		final Order order = createOrder(request, username);
+		orderRepositoryImpl.save(order);
 
 		// 주문 처리
 		processOrder(order);
