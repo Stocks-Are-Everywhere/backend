@@ -68,4 +68,8 @@ public class Order extends BaseEntity {
 	public void updateQuantity(final BigDecimal quantity) {
 		this.remainingQuantity = this.remainingQuantity.subtract(quantity);
 	}
+
+	public boolean isSellType() {
+		return type == Type.SELL;
+	}
 }

@@ -49,7 +49,6 @@ public class OrderService {
 	private final OrderRepositoryImpl orderRepositoryImpl;
 
 	// 지정가 주문
-	@Transactional
 	public void placeOrder(final OrderRequest request, final String username) throws MatchingException {
 		// 지정가 주문 가격 견적 유효성 검증
 		final BigDecimal price = request.price();

@@ -190,14 +190,7 @@ public class OrderBookService {
 				.min(existingOrder.getRemainingQuantity());
 
 			// 거래 내역 생성 및 저장
-			TradeHistoryResponse tradeHistory = TradeHistoryResponse.builder()
-				.companyCode(existingOrder.getCompanyCode())
-				.sellOrderId((long)123)
-				.buyOrderId((long)456)
-				.quantity(matchedQuantity)
-				.price(existingOrder.getPrice())
-				.tradeTime(LocalDateTime.now())
-				.build();
+			TradeHistoryResponse tradeHistory = mapToTradeHistory(incomingOrder, existingOrder, matchedQuantity);
 
 			tradeHistoryService.saveTradeHistory(tradeHistory);
 			log.info("db저장완료");
@@ -211,6 +204,27 @@ public class OrderBookService {
 				existingOrders.poll();
 			}
 		}
+	}
+
+	private TradeHistoryResponse mapToTradeHistory(final Order incomingOrder, final Order existingOrder, final BigDecimal matchedQuantity) {
+		if (incomingOrder.isSellType()) {
+			return TradeHistoryResponse.builder()
+					.companyCode(existingOrder.getCompanyCode())
+					.sellOrderId(incomingOrder.getId())
+					.buyOrderId(existingOrder.getId())
+					.quantity(matchedQuantity)
+					.price(existingOrder.getPrice())
+					.tradeTime(LocalDateTime.now())
+					.build();
+		}
+		return TradeHistoryResponse.builder()
+				.companyCode(existingOrder.getCompanyCode())
+				.sellOrderId(existingOrder.getId())
+				.buyOrderId(incomingOrder.getId())
+				.quantity(matchedQuantity)
+				.price(existingOrder.getPrice())
+				.tradeTime(LocalDateTime.now())
+				.build();
 	}
 
 	/**

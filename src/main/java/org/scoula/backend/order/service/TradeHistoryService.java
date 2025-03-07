@@ -1,5 +1,6 @@
 package org.scoula.backend.order.service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,10 +13,12 @@ import java.util.stream.Collectors;
 
 import org.scoula.backend.order.controller.response.KisStockResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
+import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.TradeHistory;
 import org.scoula.backend.order.dto.CandleDto;
 import org.scoula.backend.order.dto.ChartResponseDto;
 import org.scoula.backend.order.dto.ChartUpdateDto;
+import org.scoula.backend.order.repository.OrderRepositoryImpl;
 import org.scoula.backend.order.repository.TradeHistoryRepositoryImpl;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class TradeHistoryService {
 	private final TradeHistoryRepositoryImpl tradeHistoryRepository;
+	private final OrderRepositoryImpl orderRepository;
 	private final SimpMessagingTemplate messagingTemplate;
 
 	// 상수 정의
@@ -126,6 +130,9 @@ public class TradeHistoryService {
 
 		// DB 저장
 		tradeHistoryRepository.save(tradeHistory);
+		updateOrderQuantity(tradeHistoryResponse.sellOrderId(),
+				tradeHistory.getBuyOrderId(),
+				tradeHistoryResponse.quantity());
 
 		// 메모리 저장 및 캔들 업데이트
 		storeTradeHistory(tradeHistory);
@@ -133,6 +140,16 @@ public class TradeHistoryService {
 
 		// 실시간 업데이트 전송
 		sendChartUpdate(tradeHistory);
+	}
+
+	// 체결된 주문의 남은 수량 감소
+	private void updateOrderQuantity(final Long sellOrderId, final Long buyOrderId, final BigDecimal quantity) {
+		final Order sellOrder = orderRepository.findById(sellOrderId).orElseThrow();
+		final Order buyOrder = orderRepository.findById(buyOrderId).orElseThrow();
+		sellOrder.updateQuantity(quantity);
+		buyOrder.updateQuantity(quantity);
+		orderRepository.save(sellOrder);
+		orderRepository.save(buyOrder);
 	}
 
 	/**
