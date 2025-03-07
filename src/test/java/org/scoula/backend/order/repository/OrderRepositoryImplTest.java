@@ -37,6 +37,8 @@ class OrderRepositoryImplTest {
 			.status(status)
 			.price(price)
 			.timestamp(LocalDateTime.now())
+			.createdDateTime(LocalDateTime.now())
+			.updatedDateTime(LocalDateTime.now())
 			.build();
 	}
 

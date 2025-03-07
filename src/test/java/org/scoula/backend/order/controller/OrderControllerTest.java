@@ -68,6 +68,7 @@ class OrderControllerTest {
 
 	@Test
 	@DisplayName("TC20.3.1 주문 생성 테스트")
+	@WithMockUserDetails
 	void testReceived() throws Exception {
 		OrderRequest request = OrderRequest.builder()
 			.companyCode("AAPL")
@@ -83,11 +84,12 @@ class OrderControllerTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andExpect(status().isOk());
-		verify(orderService).placeOrder(any(OrderRequest.class), "test");
+		verify(orderService).placeOrder(any(OrderRequest.class), any(String.class));
 	}
 
 	@Test
 	@DisplayName("TC20.3.2 종목별 주문장 스냅샷 조회 테스트")
+	@WithMockUserDetails
 	void testGetSnapshot() throws Exception {
 		String companyCode = "AAPL";
 		TreeMap<BigDecimal, Queue<Order>> sellOrders = new TreeMap<>();
@@ -103,6 +105,7 @@ class OrderControllerTest {
 
 	@Test
 	@DisplayName("TC20.3.3 종목별 호가창 조회 테스트")
+	@WithMockUserDetails
 	void testGetBook() throws Exception {
 		String companyCode = "AAPL";
 		List<PriceLevelDto> sellLevels = new ArrayList<>();
@@ -122,6 +125,7 @@ class OrderControllerTest {
 
 	@Test
 	@DisplayName("TC20.3.4 종목별 주문 요약 조회 테스트")
+	@WithMockUserDetails
 	void testGetSummary() throws Exception {
 		String companyCode = "AAPL";
 		OrderSummaryResponse response = new OrderSummaryResponse(companyCode, 5, 5);
@@ -135,6 +139,7 @@ class OrderControllerTest {
 
 	@Test
 	@DisplayName("TC20.3.5 채결된 주문 조회 테스트")
+	@WithMockUserDetails
 	void testGetTradeHistory() throws Exception {
 		List<TradeHistoryResponse> response = new ArrayList<>();
 		TradeHistoryResponse tradeHistory = TradeHistoryResponse.builder()

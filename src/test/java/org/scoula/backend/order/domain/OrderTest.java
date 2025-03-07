@@ -30,6 +30,8 @@ class OrderTest {
 			.status(OrderStatus.ACTIVE)
 			.price(new BigDecimal("50000"))
 			.timestamp(LocalDateTime.now())
+			.createdDateTime(LocalDateTime.now())
+			.updatedDateTime(LocalDateTime.now())
 			.build();
 
 		entityManager.persist(order);
@@ -53,6 +55,8 @@ class OrderTest {
 			.status(OrderStatus.ACTIVE)
 			.price(new BigDecimal("50000"))
 			.timestamp(LocalDateTime.now())
+			.createdDateTime(LocalDateTime.now())
+			.updatedDateTime(LocalDateTime.now())
 			.build();
 
 		entityManager.persist(order);
@@ -99,6 +103,8 @@ class OrderTest {
 			.status(OrderStatus.ACTIVE)
 			.price(BigDecimal.ZERO)
 			.timestamp(LocalDateTime.now())
+			.createdDateTime(LocalDateTime.now())
+			.updatedDateTime(LocalDateTime.now())
 			.build();
 
 		entityManager.persist(order);
@@ -119,6 +125,5 @@ class OrderTest {
 			.toString();
 		assertThat(builderString).contains("companyCode", "type", "totalQuantity");
 	}
-
 }
 
