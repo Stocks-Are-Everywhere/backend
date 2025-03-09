@@ -14,9 +14,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.json.simple.JSONObject;
-import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.KisStockResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
+import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.KisStockHogaDto;
@@ -258,17 +258,18 @@ public class KisWebSocketClient {
 				final BigDecimal price = stockData.askPrices().get(i);
 				final BigDecimal quantity = stockData.askRemains().get(i);
 
-				final OrderRequest request = OrderRequest.builder()
+				final Order order = Order.builder()
 						.companyCode(stockData.stockCode())
 						.type(Type.SELL)
 						.totalQuantity(quantity)
 						.remainingQuantity(quantity)
 						.status(OrderStatus.ACTIVE)
 						.price(price)
-						.accountId(1L)
+						.account(null)
+						.timestamp(LocalDateTime.now())
 						.build();
 
-				orderService.placeOrder(request);
+				orderService.processOrder(order);
 			}
 
 			// 매수 호가
@@ -276,17 +277,18 @@ public class KisWebSocketClient {
 				final BigDecimal price = stockData.bidPrices().get(i);
 				final BigDecimal quantity = stockData.bidRemains().get(i);
 
-				final OrderRequest request = OrderRequest.builder()
+				final Order order = Order.builder()
 						.companyCode(stockData.stockCode())
 						.type(Type.BUY)
 						.totalQuantity(quantity)
 						.remainingQuantity(quantity)
 						.status(OrderStatus.ACTIVE)
 						.price(price)
-						.accountId(1L)
+						.account(null)
+						.timestamp(LocalDateTime.now())
 						.build();
 
-				orderService.placeOrder(request);
+				orderService.processOrder(order);
 			}
 		} catch (Exception e) {
 			log.error("Error handling hoga data message: {}", e.getMessage());
