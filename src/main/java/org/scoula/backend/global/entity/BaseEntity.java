@@ -45,4 +45,8 @@ public class BaseEntity{
 		this.deletedDateTime = deletedDateTime;
 	}
 
+	public void restore() {
+		this.deletedDateTime = null;
+	}
+
 }

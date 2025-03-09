@@ -1,6 +1,5 @@
 package org.scoula.backend.order.service;
 
-import static org.assertj.core.api.AssertionsForClassTypes.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -22,11 +21,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.scoula.backend.global.jwt.JwtUtil;
+import org.scoula.backend.member.service.AccountService;
+import org.scoula.backend.member.service.StockHoldingsService;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
@@ -50,6 +49,12 @@ class OrderBookServiceTest {
 	@Mock
 	private TradeHistoryService tradeHistoryService;
 
+	@Mock
+	private StockHoldingsService stockHoldingsService;
+
+	@Mock
+	private AccountService accountService;
+
 	@Captor
 	private ArgumentCaptor<TradeHistoryResponse> tradeHistoryCaptor;
 
@@ -61,7 +66,7 @@ class OrderBookServiceTest {
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
+		orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
 	}
 
 	@Test
@@ -412,7 +417,7 @@ class OrderBookServiceTest {
 		void testRealTimeOrderBookUpdate() {
 
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
+			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
 
 			// 초기 호가창 상태 확인
 			OrderBookResponse initialOrderBook = orderBookService.getBook();
@@ -471,7 +476,7 @@ class OrderBookServiceTest {
 		@DisplayName("TC8.1.2 호가 매칭 테스트")
 		void testOrderMatching() {
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
+			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
 			doNothing().when(tradeHistoryService).saveTradeHistory(any(TradeHistoryResponse.class));
 
 			// 매도 주문 추가
@@ -504,7 +509,7 @@ class OrderBookServiceTest {
 		@DisplayName("TC8.1.3 시장가 주문 테스트")
 		void testMarketOrder() {
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
+			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
 			doNothing().when(tradeHistoryService).saveTradeHistory(any(TradeHistoryResponse.class));
 
 			// 지정가 매도 주문 2개 추가 (서로 다른 가격)
@@ -533,7 +538,7 @@ class OrderBookServiceTest {
 		@DisplayName("TC8.1.4 시장가 주문 체결 불가 테스트")
 		void testMarketOrderNoMatch() {
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
+			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
 
 			// 시장가 매수 주문 (매도 호가가 없음)
 			Order marketBuyOrder = createOrder(Type.BUY, BigDecimal.ZERO, new BigDecimal("5"), OrderStatus.MARKET);
@@ -555,7 +560,7 @@ class OrderBookServiceTest {
 		@DisplayName("TC8.1.5 부분 체결 테스트")
 		void testPartialOrderExecution() {
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
+			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
 			doNothing().when(tradeHistoryService).saveTradeHistory(any(TradeHistoryResponse.class));
 
 			// 서로 다른 가격의 매도 주문 2개 추가
@@ -592,7 +597,7 @@ class OrderBookServiceTest {
 		@DisplayName("TC8.1.6 호가 데이터 길이 검증")
 		void testOrderBookLengthValidation() {
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
+			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
 			
 			// 초기 호가창 상태 확인
 			OrderBookResponse initialOrderBook = orderBookService.getBook();
