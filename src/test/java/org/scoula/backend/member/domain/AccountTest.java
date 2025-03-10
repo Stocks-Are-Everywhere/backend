@@ -17,7 +17,7 @@ public class AccountTest {
             .username("testuser")
             .build();
 
-    private final Account account = new Account(member);
+    private final Account account = member.createAccount();
 
     @Test
     @DisplayName("Throw exception when balance is not enough for the amount")
