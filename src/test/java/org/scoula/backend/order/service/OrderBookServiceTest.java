@@ -1,14 +1,12 @@
 package org.scoula.backend.order.service;
 
-import static org.assertj.core.api.AssertionsForClassTypes.*;
-import static org.assertj.core.api.Assertions.assertThat;
-
+import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -20,10 +18,8 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.Mock;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.scoula.backend.global.jwt.JwtUtil;
@@ -231,6 +227,7 @@ class OrderBookServiceTest {
 	// }
 
 	private Order createOrder(Type type, BigDecimal price, BigDecimal quantity, OrderStatus status) {
+		Long now = Instant.now().getEpochSecond();
 		return Order.builder()
 				.companyCode(COMPANY_CODE)
 				.type(type)
@@ -238,7 +235,7 @@ class OrderBookServiceTest {
 				.remainingQuantity(quantity)
 				.status(status)
 				.price(price)
-				.timestamp(LocalDateTime.now())
+				.timestamp(now)
 				.build();
 	}
 
@@ -287,7 +284,7 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매수 주문의 경우 높은 가격의 주문부터 체결된다.")
 	void buyOrderHigherPricePriorityMatching() throws MatchingException {
-		LocalDateTime createdAt = LocalDateTime.of(2025, 3, 3, 0, 0);
+		Long createdAt = Instant.now().getEpochSecond();
 		Order buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(2000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
 		Order buyOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
@@ -307,7 +304,7 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매도 주문의 경우 낮은 가격의 주문부터 체결된다.")
 	void sellOrderLowerPricePriorityMatching() throws MatchingException {
-		LocalDateTime createdAt = LocalDateTime.of(2025, 3, 3, 0, 0);
+		Long createdAt = Instant.now().getEpochSecond();
 		Order sellOrder1 = createOrder(1L, Type.SELL, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
 		Order sellOrder2 = createOrder(2L, Type.SELL, new BigDecimal(2000), new BigDecimal(10), createdAt,
@@ -327,8 +324,8 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매수 주문시, 같은 가격일 경우 먼저 주문이 들어온 주문부터 처리한다.")
 	void buyOrderTimePriorityMatching() throws MatchingException {
-		LocalDateTime createdAt = LocalDateTime.of(2025, 3, 3, 0, 0);
-		Order buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt.plusSeconds(1),
+		Long createdAt = Instant.now().getEpochSecond();
+		Order buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt + 1,
 				OrderStatus.ACTIVE);
 		Order buyOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
@@ -346,8 +343,8 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매도 주문시, 같은 가격일 경우 먼저 주문이 들어온 주문부터 처리한다.")
 	void sellOrderTimePriorityMatching() throws MatchingException {
-		LocalDateTime createdAt = LocalDateTime.of(2025, 3, 3, 0, 0);
-		Order sellOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt.plusSeconds(1),
+		Long createdAt = Instant.now().getEpochSecond();
+		Order sellOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt + 1,
 				OrderStatus.ACTIVE);
 		Order sellOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
@@ -366,7 +363,7 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매수 주문시, 모든 조건이 일치할 경우 수량이 많은 주문부터 체결한다.")
 	void buyOrderQuantityPriorityMatching() throws MatchingException {
-		LocalDateTime createdAt = LocalDateTime.of(2025, 3, 3, 0, 0);
+		Long createdAt = Instant.now().getEpochSecond();
 		Order buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
 		Order buyOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(11), createdAt,
@@ -386,7 +383,7 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매도 주문시, 모든 조건이 일치할 경우 수량이 많은 주문부터 체결한다.")
 	void sellOrderQuantityPriorityMatching() throws MatchingException {
-		LocalDateTime createdAt = LocalDateTime.of(2025, 3, 3, 0, 0);
+		Long createdAt = Instant.now().getEpochSecond();
 		Order sellOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
 		Order sellOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(11), createdAt,
@@ -593,7 +590,7 @@ class OrderBookServiceTest {
 		void testOrderBookLengthValidation() {
 			// Given
 			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
-			
+
 			// 초기 호가창 상태 확인
 			OrderBookResponse initialOrderBook = orderBookService.getBook();
 			assertNotNull(initialOrderBook.sellLevels(), "매도 호가 리스트는 null이 아니어야 함");
@@ -625,7 +622,7 @@ class OrderBookServiceTest {
 
 	}
 
-	private Order createOrder(Long id, Type type, BigDecimal price, BigDecimal quantity, LocalDateTime timestamp,
+	private Order createOrder(Long id, Type type, BigDecimal price, BigDecimal quantity, Long timestamp,
 			OrderStatus status) {
 		return Order.builder()
 				.id(id)

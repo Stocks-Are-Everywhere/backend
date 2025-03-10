@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.text.DecimalFormat;
 import java.text.ParseException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -252,6 +253,7 @@ public class KisWebSocketClient {
 	private void handleHogaDataMessage(String stockCode, String payload) {
 		try {
 			final KisStockHogaDto stockData = parseKisHogaData(payload);
+			final Long now = Instant.now().getEpochSecond();
 
 			// 매도 호가
 			for (int i = 0; i < 10; i++) {
@@ -266,7 +268,7 @@ public class KisWebSocketClient {
 						.status(OrderStatus.ACTIVE)
 						.price(price)
 						.account(null)
-						.timestamp(LocalDateTime.now())
+						.timestamp(now)
 						.build();
 
 				orderService.processOrder(order);
@@ -285,7 +287,7 @@ public class KisWebSocketClient {
 						.status(OrderStatus.ACTIVE)
 						.price(price)
 						.account(null)
-						.timestamp(LocalDateTime.now())
+						.timestamp(now)
 						.build();
 
 				orderService.processOrder(order);
