@@ -30,6 +30,7 @@ import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
 import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.Type;
+import org.scoula.backend.order.repository.OrderRepositoryImpl;
 import org.scoula.backend.order.service.exception.MatchingException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,15 +56,27 @@ class OrderServiceTest {
 	@Mock
 	TradeHistoryService tradeHistoryService;
 
-	private final Company company = Company.builder().isuNm("AAPL").isuCd("AAPL").closingPrice(new BigDecimal("150.00")).build();
-	private final Member member = Member.builder().id(1L).username("username").googleId("googleId").role(MemberRoleEnum.USER).build();
+	@Mock
+	OrderRepositoryImpl orderRepositoryimpl;
+
+	private final Company company = Company.builder()
+		.isuNm("AAPL")
+		.isuCd("AAPL")
+		.closingPrice(new BigDecimal("150.00"))
+		.build();
+	private final Member member = Member.builder()
+		.id(1L)
+		.username("username")
+		.googleId("googleId")
+		.role(MemberRoleEnum.USER)
+		.build();
 
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
 
 		orderService = new OrderService(messagingTemplate, tradeHistoryService, companyRepository, accountRepository,
-			memberRepository);
+			memberRepository, orderRepositoryimpl);
 	}
 
 	@Test

@@ -65,7 +65,8 @@ class CompanyRepositoryImplTest {
 	@Test
 	@DisplayName("TC2-1-3: 종목 검색 테스트")
 	void TC2_1_3_종목_검색() {
-		List<Company> results = companyRepository.findByIsuNmContainingOrIsuSrtCdContaining("삼성");
+		List<Company> results = companyRepository.findByIsuNmContainingOrIsuAbbrvContainingOrIsuEngNmContainingOrIsuSrtCdContaining(
+			"삼성");
 		assertThat(results).hasSize(1);
 		assertThat(results.get(0).getIsuNm()).isEqualTo("삼성전자");
 	}
@@ -73,7 +74,8 @@ class CompanyRepositoryImplTest {
 	@Test
 	@DisplayName("TC2-3-1: 존재하지 않는 종목 검색 테스트")
 	void TC2_3_1_존재하지_않는_종목_검색() {
-		List<Company> results = companyRepository.findByIsuNmContainingOrIsuSrtCdContaining("존재하지않는회사");
+		List<Company> results = companyRepository.findByIsuNmContainingOrIsuAbbrvContainingOrIsuEngNmContainingOrIsuSrtCdContaining(
+			"존재하지않는회사");
 		assertThat(results).isEmpty();
 	}
 
