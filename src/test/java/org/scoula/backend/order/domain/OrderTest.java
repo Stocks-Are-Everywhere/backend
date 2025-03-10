@@ -48,7 +48,7 @@ class OrderTest {
 
 	@Test
 	@DisplayName("주문 수량 업데이트 테스트")
-	void testUpdateQuantity() {
+	void testDecreaseRemainingQuantity() {
 		Long now = Instant.now().getEpochSecond();
 		Order order = Order.builder()
 				.companyCode("005930")
@@ -65,7 +65,7 @@ class OrderTest {
 		entityManager.persist(order);
 		entityManager.flush();
 
-		order.updateQuantity(new BigDecimal("20"));
+		order.decreaseRemainingQuantity(new BigDecimal("20"));
 		entityManager.flush();
 
 		Order updatedOrder = entityManager.find(Order.class, order.getId());

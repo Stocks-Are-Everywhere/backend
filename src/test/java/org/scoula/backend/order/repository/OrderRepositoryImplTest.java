@@ -140,7 +140,7 @@ class OrderRepositoryImplTest {
 		Order order = createSampleOrder("005930", Type.BUY, new BigDecimal("50000"), OrderStatus.ACTIVE);
 		Order savedOrder = orderRepository.save(order);
 
-		savedOrder.updateQuantity(new BigDecimal("5"));
+		savedOrder.decreaseRemainingQuantity(new BigDecimal("5"));
 		Order updatedOrder = orderRepository.save(savedOrder);
 
 		assertThat(updatedOrder.getRemainingQuantity()).isEqualTo(new BigDecimal("5"));
