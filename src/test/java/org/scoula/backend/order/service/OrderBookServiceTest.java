@@ -1,8 +1,6 @@
 package org.scoula.backend.order.service;
 
-import static org.assertj.core.api.AssertionsForClassTypes.*;
-import static org.assertj.core.api.Assertions.assertThat;
-
+import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -21,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.scoula.backend.global.jwt.JwtUtil;
@@ -66,7 +65,8 @@ class OrderBookServiceTest {
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
+		orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService,
+				accountService);
 	}
 
 	@Test
@@ -236,6 +236,7 @@ class OrderBookServiceTest {
 	// }
 
 	private Order createOrder(Type type, BigDecimal price, BigDecimal quantity, OrderStatus status) {
+		Long now = Instant.now().getEpochSecond();
 		return Order.builder()
 				.companyCode(COMPANY_CODE)
 				.type(type)
@@ -243,7 +244,7 @@ class OrderBookServiceTest {
 				.remainingQuantity(quantity)
 				.status(status)
 				.price(price)
-				.timestamp(LocalDateTime.now())
+				.timestamp(now)
 				.build();
 	}
 
@@ -292,7 +293,7 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매수 주문의 경우 높은 가격의 주문부터 체결된다.")
 	void buyOrderHigherPricePriorityMatching() throws MatchingException {
-		LocalDateTime createdAt = LocalDateTime.of(2025, 3, 3, 0, 0);
+		Long createdAt = Instant.now().getEpochSecond();
 		Order buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(2000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
 		Order buyOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
@@ -312,7 +313,7 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매도 주문의 경우 낮은 가격의 주문부터 체결된다.")
 	void sellOrderLowerPricePriorityMatching() throws MatchingException {
-		LocalDateTime createdAt = LocalDateTime.of(2025, 3, 3, 0, 0);
+		Long createdAt = Instant.now().getEpochSecond();
 		Order sellOrder1 = createOrder(1L, Type.SELL, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
 		Order sellOrder2 = createOrder(2L, Type.SELL, new BigDecimal(2000), new BigDecimal(10), createdAt,
@@ -332,8 +333,8 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매수 주문시, 같은 가격일 경우 먼저 주문이 들어온 주문부터 처리한다.")
 	void buyOrderTimePriorityMatching() throws MatchingException {
-		LocalDateTime createdAt = LocalDateTime.of(2025, 3, 3, 0, 0);
-		Order buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt.plusSeconds(1),
+		Long createdAt = Instant.now().getEpochSecond();
+		Order buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt + 1,
 				OrderStatus.ACTIVE);
 		Order buyOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
@@ -351,8 +352,8 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매도 주문시, 같은 가격일 경우 먼저 주문이 들어온 주문부터 처리한다.")
 	void sellOrderTimePriorityMatching() throws MatchingException {
-		LocalDateTime createdAt = LocalDateTime.of(2025, 3, 3, 0, 0);
-		Order sellOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt.plusSeconds(1),
+		Long createdAt = Instant.now().getEpochSecond();
+		Order sellOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt + 1,
 				OrderStatus.ACTIVE);
 		Order sellOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
@@ -371,7 +372,7 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매수 주문시, 모든 조건이 일치할 경우 수량이 많은 주문부터 체결한다.")
 	void buyOrderQuantityPriorityMatching() throws MatchingException {
-		LocalDateTime createdAt = LocalDateTime.of(2025, 3, 3, 0, 0);
+		Long createdAt = Instant.now().getEpochSecond();
 		Order buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
 		Order buyOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(11), createdAt,
@@ -418,7 +419,8 @@ class OrderBookServiceTest {
 		void testRealTimeOrderBookUpdate() {
 
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
+			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
+					stockHoldingsService, accountService);
 
 			// 초기 호가창 상태 확인
 			OrderBookResponse initialOrderBook = orderBookService.getBook();
@@ -477,7 +479,8 @@ class OrderBookServiceTest {
 		@DisplayName("TC8.1.2 호가 매칭 테스트")
 		void testOrderMatching() {
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
+			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
+					stockHoldingsService, accountService);
 			doNothing().when(tradeHistoryService).saveTradeHistory(any(TradeHistoryResponse.class));
 
 			// 매도 주문 추가
@@ -510,7 +513,8 @@ class OrderBookServiceTest {
 		@DisplayName("TC8.1.3 시장가 주문 테스트")
 		void testMarketOrder() {
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
+			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
+					stockHoldingsService, accountService);
 			doNothing().when(tradeHistoryService).saveTradeHistory(any(TradeHistoryResponse.class));
 
 			// 지정가 매도 주문 2개 추가 (서로 다른 가격)
@@ -539,7 +543,8 @@ class OrderBookServiceTest {
 		@DisplayName("TC8.1.4 시장가 주문 체결 불가 테스트")
 		void testMarketOrderNoMatch() {
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
+			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
+					stockHoldingsService, accountService);
 
 			// 시장가 매수 주문 (매도 호가가 없음)
 			Order marketBuyOrder = createOrder(Type.BUY, BigDecimal.ZERO, new BigDecimal("5"), OrderStatus.MARKET);
@@ -561,7 +566,8 @@ class OrderBookServiceTest {
 		@DisplayName("TC8.1.5 부분 체결 테스트")
 		void testPartialOrderExecution() {
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
+			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
+					stockHoldingsService, accountService);
 			doNothing().when(tradeHistoryService).saveTradeHistory(any(TradeHistoryResponse.class));
 
 			// 서로 다른 가격의 매도 주문 2개 추가
@@ -598,8 +604,8 @@ class OrderBookServiceTest {
 		@DisplayName("TC8.1.6 호가 데이터 길이 검증")
 		void testOrderBookLengthValidation() {
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
-			
+			// OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
+
 			// 초기 호가창 상태 확인
 			OrderBookResponse initialOrderBook = orderBookService.getBook();
 			assertNotNull(initialOrderBook.sellLevels(), "매도 호가 리스트는 null이 아니어야 함");
