@@ -6,7 +6,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
-import org.hibernate.annotations.SQLRestriction;
 import org.scoula.backend.global.entity.BaseEntity;
 import org.scoula.backend.member.exception.HoldingsNotFoundException;
 import org.scoula.backend.member.exception.InsufficientHoldingsException;
