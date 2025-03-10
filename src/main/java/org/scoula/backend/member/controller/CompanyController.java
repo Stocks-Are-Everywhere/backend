@@ -31,7 +31,7 @@ public class CompanyController {
 	 */
 
 	@GetMapping("/search")
-	public List<CompanySearchResponseDto> searchCompanies(@RequestParam final String query) {
+	public List<CompanySearchResponseDto> searchCompanies(@RequestParam(name = "query") final String query) {
 		if (query == null || query.trim().isEmpty()) {
 			log.info("빈 검색어가 입력되었습니다.");
 			return Collections.emptyList();

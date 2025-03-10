@@ -7,7 +7,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
@@ -30,7 +29,6 @@ import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.PriceLevelDto;
 import org.scoula.backend.order.service.OrderService;
-import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -58,13 +56,13 @@ class OrderControllerTest {
 	private UserDetailsServiceImpl userDetailsServiceImpl;
 
 	private final OrderRequest request = new OrderRequest(
-		"005930",
-		Type.BUY,
-		new BigDecimal(100),
-		new BigDecimal(100),
-		OrderStatus.ACTIVE,
-		new BigDecimal(1000),
-		1L
+			"005930",
+			Type.BUY,
+			new BigDecimal(100),
+			new BigDecimal(100),
+			OrderStatus.ACTIVE,
+			new BigDecimal(1000),
+			1L
 	);
 
 	@Test
@@ -72,19 +70,19 @@ class OrderControllerTest {
 	@WithMockUserDetails
 	void testReceived() throws Exception {
 		OrderRequest request = OrderRequest.builder()
-			.companyCode("AAPL")
-			.type(Type.BUY)
-			.totalQuantity(new BigDecimal("10"))
-			.remainingQuantity(new BigDecimal("10"))
-			.status(OrderStatus.ACTIVE)
-			.price(new BigDecimal("150.00"))
-			.accountId(1L)
-			.build();
+				.companyCode("AAPL")
+				.type(Type.BUY)
+				.totalQuantity(new BigDecimal("10"))
+				.remainingQuantity(new BigDecimal("10"))
+				.status(OrderStatus.ACTIVE)
+				.price(new BigDecimal("150.00"))
+				.accountId(1L)
+				.build();
 
 		mockMvc.perform(post("/api/order")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isOk());
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isOk());
 		verify(orderService).placeOrder(any(OrderRequest.class), any(String.class));
 	}
 
@@ -99,9 +97,9 @@ class OrderControllerTest {
 		when(orderService.getSnapshot(companyCode)).thenReturn(response);
 
 		mockMvc.perform(get("/api/order/snapshot")
-				.param("code", companyCode))
-			.andExpect(status().isOk())
-			.andExpect(content().json(objectMapper.writeValueAsString(response)));
+						.param("code", companyCode))
+				.andExpect(status().isOk())
+				.andExpect(content().json(objectMapper.writeValueAsString(response)));
 	}
 
 	@Test
@@ -112,16 +110,16 @@ class OrderControllerTest {
 		List<PriceLevelDto> sellLevels = new ArrayList<>();
 		List<PriceLevelDto> buyLevels = new ArrayList<>();
 		OrderBookResponse response = OrderBookResponse.builder()
-			.companyCode(companyCode)
-			.sellLevels(sellLevels)
-			.buyLevels(buyLevels)
-			.build();
+				.companyCode(companyCode)
+				.sellLevels(sellLevels)
+				.buyLevels(buyLevels)
+				.build();
 		when(orderService.getBook(companyCode)).thenReturn(response);
 
 		mockMvc.perform(get("/api/order/book")
-				.param("code", companyCode))
-			.andExpect(status().isOk())
-			.andExpect(content().json(objectMapper.writeValueAsString(response)));
+						.param("code", companyCode))
+				.andExpect(status().isOk())
+				.andExpect(content().json(objectMapper.writeValueAsString(response)));
 	}
 
 	@Test
@@ -133,9 +131,9 @@ class OrderControllerTest {
 		when(orderService.getSummary(companyCode)).thenReturn(response);
 
 		mockMvc.perform(get("/api/order/summary")
-				.param("code", companyCode))
-			.andExpect(status().isOk())
-			.andExpect(content().json(objectMapper.writeValueAsString(response)));
+						.param("code", companyCode))
+				.andExpect(status().isOk())
+				.andExpect(content().json(objectMapper.writeValueAsString(response)));
 	}
 
 	@Test
@@ -143,21 +141,22 @@ class OrderControllerTest {
 	@WithMockUserDetails
 	void testGetTradeHistory() throws Exception {
 		List<TradeHistoryResponse> response = new ArrayList<>();
+		Long now = Instant.now().getEpochSecond();
 		TradeHistoryResponse tradeHistory = TradeHistoryResponse.builder()
-			.id(1L)
-			.companyCode("AAPL")
-			.sellOrderId(100L)
-			.buyOrderId(101L)
-			.quantity(new BigDecimal("10"))
-			.price(new BigDecimal("150.00"))
-			.tradeTime(Instant.now().getEpochSecond())
-			.build();
+				.id(1L)
+				.companyCode("AAPL")
+				.sellOrderId(100L)
+				.buyOrderId(101L)
+				.quantity(new BigDecimal("10"))
+				.price(new BigDecimal("150.00"))
+				.tradeTime(now)
+				.build();
 		response.add(tradeHistory);
 		when(orderService.getTradeHistory()).thenReturn(response);
 
 		mockMvc.perform(get("/api/order/tradehistory"))
-			.andExpect(status().isOk())
-			.andExpect(content().json(objectMapper.writeValueAsString(response)));
+				.andExpect(status().isOk())
+				.andExpect(content().json(objectMapper.writeValueAsString(response)));
 	}
 
 	@Test
@@ -166,19 +165,19 @@ class OrderControllerTest {
 	void orderSuccess() throws Exception {
 		// when & then
 		mockMvc.perform(post("/api/order")
-				.header("Authorization", "token")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isOk());
+						.header("Authorization", "token")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isOk());
 	}
 
 	@Test
 	@DisplayName("사용자 정보가 존재하지 않는 경우 주문 실패")
 	void failedOrderWhenUserIsUnauthorized() throws Exception {
 		mockMvc.perform(post("/api/order")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isForbidden());
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isForbidden());
 	}
 
 	@Test
@@ -190,10 +189,10 @@ class OrderControllerTest {
 
 		// when & then
 		mockMvc.perform(post("/api/order")
-				.header("Authorization", "token")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isNotFound());
+						.header("Authorization", "token")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isNotFound());
 	}
 
 	@Test
@@ -205,9 +204,9 @@ class OrderControllerTest {
 
 		// when & then
 		mockMvc.perform(post("/api/order")
-				.header("Authorization", "token")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-			.andExpect(status().isNotFound());
+						.header("Authorization", "token")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isNotFound());
 	}
 }

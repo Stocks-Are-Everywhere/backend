@@ -3,6 +3,7 @@ package org.scoula.backend.order.repository;
 import static org.assertj.core.api.Assertions.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -29,17 +30,18 @@ class OrderRepositoryImplTest {
 	private TestEntityManager entityManager;
 
 	private Order createSampleOrder(String companyCode, Type type, BigDecimal price, OrderStatus status) {
+		Long now = Instant.now().getEpochSecond();
 		return Order.builder()
-			.companyCode(companyCode)
-			.type(type)
-			.totalQuantity(new BigDecimal("10"))
-			.remainingQuantity(new BigDecimal("10"))
-			.status(status)
-			.price(price)
-			.timestamp(LocalDateTime.now())
-			.createdDateTime(LocalDateTime.now())
-			.updatedDateTime(LocalDateTime.now())
-			.build();
+				.companyCode(companyCode)
+				.type(type)
+				.totalQuantity(new BigDecimal("10"))
+				.remainingQuantity(new BigDecimal("10"))
+				.status(status)
+				.price(price)
+				.timestamp(now)
+				.createdDateTime(LocalDateTime.now())
+				.updatedDateTime(LocalDateTime.now())
+				.build();
 	}
 
 	@BeforeEach
@@ -138,7 +140,7 @@ class OrderRepositoryImplTest {
 		Order order = createSampleOrder("005930", Type.BUY, new BigDecimal("50000"), OrderStatus.ACTIVE);
 		Order savedOrder = orderRepository.save(order);
 
-		savedOrder.updateQuantity(new BigDecimal("5"));
+		savedOrder.decreaseRemainingQuantity(new BigDecimal("5"));
 		Order updatedOrder = orderRepository.save(savedOrder);
 
 		assertThat(updatedOrder.getRemainingQuantity()).isEqualTo(new BigDecimal("5"));

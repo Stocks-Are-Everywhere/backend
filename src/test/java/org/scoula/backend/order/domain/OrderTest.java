@@ -3,6 +3,7 @@ package org.scoula.backend.order.domain;
 import static org.assertj.core.api.Assertions.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 import org.junit.jupiter.api.DisplayName;
@@ -22,17 +23,18 @@ class OrderTest {
 	@Test
 	@DisplayName("주문 생성 및 조회 테스트")
 	void testOrderCreationAndRetrieval() {
+		Long now = Instant.now().getEpochSecond();
 		Order order = Order.builder()
-			.companyCode("005930")
-			.type(Type.BUY)
-			.totalQuantity(new BigDecimal("100"))
-			.remainingQuantity(new BigDecimal("100"))
-			.status(OrderStatus.ACTIVE)
-			.price(new BigDecimal("50000"))
-			.timestamp(LocalDateTime.now())
-			.createdDateTime(LocalDateTime.now())
-			.updatedDateTime(LocalDateTime.now())
-			.build();
+				.companyCode("005930")
+				.type(Type.BUY)
+				.totalQuantity(new BigDecimal("100"))
+				.remainingQuantity(new BigDecimal("100"))
+				.status(OrderStatus.ACTIVE)
+				.price(new BigDecimal("50000"))
+				.timestamp(now)
+				.createdDateTime(LocalDateTime.now())
+				.updatedDateTime(LocalDateTime.now())
+				.build();
 
 		entityManager.persist(order);
 		entityManager.flush();
@@ -46,23 +48,24 @@ class OrderTest {
 
 	@Test
 	@DisplayName("주문 수량 업데이트 테스트")
-	void testUpdateQuantity() {
+	void testDecreaseRemainingQuantity() {
+		Long now = Instant.now().getEpochSecond();
 		Order order = Order.builder()
-			.companyCode("005930")
-			.type(Type.BUY)
-			.totalQuantity(new BigDecimal("100"))
-			.remainingQuantity(new BigDecimal("100"))
-			.status(OrderStatus.ACTIVE)
-			.price(new BigDecimal("50000"))
-			.timestamp(LocalDateTime.now())
-			.createdDateTime(LocalDateTime.now())
-			.updatedDateTime(LocalDateTime.now())
-			.build();
+				.companyCode("005930")
+				.type(Type.BUY)
+				.totalQuantity(new BigDecimal("100"))
+				.remainingQuantity(new BigDecimal("100"))
+				.status(OrderStatus.ACTIVE)
+				.price(new BigDecimal("50000"))
+				.timestamp(now)
+				.createdDateTime(LocalDateTime.now())
+				.updatedDateTime(LocalDateTime.now())
+				.build();
 
 		entityManager.persist(order);
 		entityManager.flush();
 
-		order.updateQuantity(new BigDecimal("20"));
+		order.decreaseRemainingQuantity(new BigDecimal("20"));
 		entityManager.flush();
 
 		Order updatedOrder = entityManager.find(Order.class, order.getId());
@@ -72,16 +75,16 @@ class OrderTest {
 	@Test
 	@DisplayName("모든 getter 메서드 테스트")
 	void testAllGetters() {
-		LocalDateTime now = LocalDateTime.now();
+		Long now = Instant.now().getEpochSecond();
 		Order order = Order.builder()
-			.companyCode("005930")
-			.type(Type.BUY)
-			.totalQuantity(new BigDecimal("100"))
-			.remainingQuantity(new BigDecimal("100"))
-			.status(OrderStatus.ACTIVE)
-			.price(new BigDecimal("50000"))
-			.timestamp(now)
-			.build();
+				.companyCode("005930")
+				.type(Type.BUY)
+				.totalQuantity(new BigDecimal("100"))
+				.remainingQuantity(new BigDecimal("100"))
+				.status(OrderStatus.ACTIVE)
+				.price(new BigDecimal("50000"))
+				.timestamp(now)
+				.build();
 
 		assertThat(order.getCompanyCode()).isEqualTo("005930");
 		assertThat(order.getType()).isEqualTo(Type.BUY);
@@ -95,17 +98,18 @@ class OrderTest {
 	@Test
 	@DisplayName("주문수량 0 테스트")
 	void testEdgeCases() {
+		Long now = Instant.now().getEpochSecond();
 		Order order = Order.builder()
-			.companyCode("005930")
-			.type(Type.BUY)
-			.totalQuantity(BigDecimal.ZERO)
-			.remainingQuantity(BigDecimal.ZERO)
-			.status(OrderStatus.ACTIVE)
-			.price(BigDecimal.ZERO)
-			.timestamp(LocalDateTime.now())
-			.createdDateTime(LocalDateTime.now())
-			.updatedDateTime(LocalDateTime.now())
-			.build();
+				.companyCode("005930")
+				.type(Type.BUY)
+				.totalQuantity(BigDecimal.ZERO)
+				.remainingQuantity(BigDecimal.ZERO)
+				.status(OrderStatus.ACTIVE)
+				.price(BigDecimal.ZERO)
+				.timestamp(now)
+				.createdDateTime(LocalDateTime.now())
+				.updatedDateTime(LocalDateTime.now())
+				.build();
 
 		entityManager.persist(order);
 		entityManager.flush();
@@ -119,10 +123,10 @@ class OrderTest {
 	@DisplayName("빌더 toString 메서드 테스트")
 	void testBuilderToString() {
 		String builderString = Order.builder()
-			.companyCode("005930")
-			.type(Type.BUY)
-			.totalQuantity(new BigDecimal("100"))
-			.toString();
+				.companyCode("005930")
+				.type(Type.BUY)
+				.totalQuantity(new BigDecimal("100"))
+				.toString();
 		assertThat(builderString).contains("companyCode", "type", "totalQuantity");
 	}
 }

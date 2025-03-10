@@ -17,9 +17,9 @@ public class CompanySearchResponseDto {
 
 	private final String isuNm;      // 한글 종목명
 	private final String isuSrtCd;   // 단축코드
-	private final String mktTpNm;    // 시장구분
-	private final String secugrpNm;  // 증권구분
 	private final String isuAbbrv; // 한글 약어
+	private final String isuEngNm; //영문
+	private final String kindStkcertTpNm;// 주식 종류
 
 	/**
 	 * Company 엔티티를 CompanySearchResponseDto로 변환하는 메서드
@@ -31,9 +31,9 @@ public class CompanySearchResponseDto {
 		return CompanySearchResponseDto.builder()
 			.isuNm(company.getIsuNm())
 			.isuSrtCd(company.getIsuSrtCd())
-			.mktTpNm(company.getMktTpNm())
-			.secugrpNm(company.getSecugrpNm())
 			.isuAbbrv(company.getIsuAbbrv())
+			.isuEngNm(company.getIsuEngNm())
+			.kindStkcertTpNm(company.getKindStkcertTpNm())
 			.build();
 	}
 }

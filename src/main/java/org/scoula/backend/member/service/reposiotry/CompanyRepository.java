@@ -17,7 +17,7 @@ public interface CompanyRepository {
 	 * @param query 검색어
 	 * @return 검색된 회사 리스트
 	 */
-	List<Company> findByIsuNmContainingOrIsuSrtCdContaining(final String query);
+	List<Company> findByIsuNmContainingOrIsuAbbrvContainingOrIsuEngNmContainingOrIsuSrtCdContaining(final String query);
 
 	List<Company> findAll();
 

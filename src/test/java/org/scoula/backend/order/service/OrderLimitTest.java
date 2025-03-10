@@ -1,5 +1,12 @@
 package org.scoula.backend.order.service;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+import java.math.BigDecimal;
+import java.util.Optional;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,14 +28,6 @@ import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.service.exception.OrderPriceQuotationException;
 import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-
-import java.math.BigDecimal;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThatNoException;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class OrderLimitTest {

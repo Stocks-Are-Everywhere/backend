@@ -720,7 +720,7 @@ class TradeHistoryServiceTest {
 				.remainingQuantity(new BigDecimal("10"))
 				.status(OrderStatus.ACTIVE)
 				.price(new BigDecimal("1000"))
-				.timestamp(LocalDateTime.now())
+				.timestamp(Instant.now().getEpochSecond())
 				.status(OrderStatus.ACTIVE)
 				.build();
 	}

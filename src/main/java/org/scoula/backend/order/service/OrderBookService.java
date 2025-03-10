@@ -10,6 +10,8 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.TreeMap;
 
+import org.scoula.backend.member.service.AccountService;
+import org.scoula.backend.member.service.StockHoldingsService;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
 import org.scoula.backend.order.controller.response.OrderSummaryResponse;
@@ -37,12 +39,19 @@ public class OrderBookService {
 
 	private final TradeHistoryService tradeHistoryService;
 
+	private final StockHoldingsService stockHoldingsService;
+
+	private final AccountService accountService;
+
 	/**
 	 * 생성자
 	 */
-	public OrderBookService(final String companyCode, TradeHistoryService tradeHistoryService) {
+	public OrderBookService(final String companyCode, TradeHistoryService tradeHistoryService,
+		StockHoldingsService stockHoldingsService, AccountService accountService) {
 		this.companyCode = companyCode;
 		this.tradeHistoryService = tradeHistoryService;
+		this.stockHoldingsService = stockHoldingsService;
+		this.accountService = accountService;
 	}
 
 	/**
@@ -188,49 +197,60 @@ public class OrderBookService {
 	 * 주문 매칭 처리
 	 */
 	private void matchOrders(final Queue<Order> existingOrders, final Order incomingOrder) {
-		while (!existingOrders.isEmpty() &&
-				incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
+		while (!existingOrders.isEmpty() && incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			final Order existingOrder = existingOrders.peek();
+        	final BigDecimal matchedQuantity = incomingOrder.getRemainingQuantity()
+				.min(existingOrder.getRemainingQuantity());
+			final BigDecimal matchPrice = existingOrder.getPrice(); // 체결 가격은 항상 기존 주문 가격
 
-			final BigDecimal matchedQuantity = incomingOrder.getRemainingQuantity()
-					.min(existingOrder.getRemainingQuantity());
+			// 1. 주문 수량 업데이트
+			incomingOrder.decreaseRemainingQuantity(matchedQuantity);
+			existingOrder.decreaseRemainingQuantity(matchedQuantity);
 
-			// 거래 내역 생성 및 저장
-			TradeHistoryResponse tradeHistory = mapToTradeHistory(incomingOrder, existingOrder, matchedQuantity);
+	        // 2. 매수자/매도자 결정
+			Order buyOrder, sellOrder;
+			if (incomingOrder.isSellType()) {
+				buyOrder = existingOrder;
+				sellOrder = incomingOrder;
+			} else {
+				buyOrder = incomingOrder;
+				sellOrder = existingOrder;
+			}
 
-			tradeHistoryService.saveTradeHistory(tradeHistory);
-			log.info("db저장완료");
+			// 3. 거래 처리
+			processTradeMatch(buyOrder, sellOrder, matchPrice, matchedQuantity);
 
-			// 수량 업데이트
-			incomingOrder.updateQuantity(matchedQuantity);
-			existingOrder.updateQuantity(matchedQuantity);
-
-			// 완전 체결된 주문 제거
+			// 4. 완전 체결된 주문 제거
 			if (existingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
 				existingOrders.poll();
 			}
 		}
 	}
 
-	private TradeHistoryResponse mapToTradeHistory(final Order incomingOrder, final Order existingOrder, final BigDecimal matchedQuantity) {
-		if (incomingOrder.isSellType()) {
-			return TradeHistoryResponse.builder()
-					.companyCode(existingOrder.getCompanyCode())
-					.sellOrderId(incomingOrder.getId())
-					.buyOrderId(existingOrder.getId())
-					.quantity(matchedQuantity)
-					.price(existingOrder.getPrice())
-					.tradeTime(Instant.now().getEpochSecond())
-					.build();
-		}
-		return TradeHistoryResponse.builder()
-				.companyCode(existingOrder.getCompanyCode())
-				.sellOrderId(existingOrder.getId())
-				.buyOrderId(incomingOrder.getId())
-				.quantity(matchedQuantity)
-				.price(existingOrder.getPrice())
+	 // 매수/매도 주문 체결 처리
+	private void processTradeMatch(Order buyOrder, Order sellOrder, BigDecimal price, BigDecimal quantity) {
+		String companyCode = buyOrder.getCompanyCode();
+		log.info("매수/매도 주문 체결 처리 - 매수ID: {}, 매도ID: {}, 가격: {}, 수량: {}, 종목: {}",
+				buyOrder.getId(), sellOrder.getId(), price, quantity, companyCode);
+
+		// 1. 거래 내역 저장
+		TradeHistoryResponse tradeHistory = TradeHistoryResponse.builder()
+				.companyCode(companyCode)
+				.buyOrderId(buyOrder.getId())
+				.sellOrderId(sellOrder.getId())
+				.quantity(quantity)
+				.price(price)
 				.tradeTime(Instant.now().getEpochSecond())
 				.build();
+		tradeHistoryService.saveTradeHistory(tradeHistory);
+
+		// 2. 계좌 잔액 처리
+		accountService.updateAccountAfterTrade(Type.BUY, buyOrder.getAccount(), price, quantity);
+		accountService.updateAccountAfterTrade(Type.SELL, sellOrder.getAccount(), price, quantity);
+
+		// 3. 보유 주식 처리
+		stockHoldingsService.updateHoldingsAfterTrade(Type.BUY, buyOrder.getAccount(), companyCode, price, quantity);
+		stockHoldingsService.updateHoldingsAfterTrade(Type.SELL, sellOrder.getAccount(), companyCode, price, quantity);
 	}
 
 	/**

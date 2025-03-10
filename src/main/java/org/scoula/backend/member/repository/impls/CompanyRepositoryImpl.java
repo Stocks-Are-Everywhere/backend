@@ -25,9 +25,11 @@ public class CompanyRepositoryImpl implements CompanyRepository {
 	 * @return 검색된 회사 리스트
 	 */
 	@Override
-	public List<Company> findByIsuNmContainingOrIsuSrtCdContaining(final String query) {
-		List<Company> companies = companyJpaRepository.findByIsuNmContainingOrIsuAbbrvContaining(query, query);
-		return companies;
+	public List<Company> findByIsuNmContainingOrIsuAbbrvContainingOrIsuEngNmContainingOrIsuSrtCdContaining(
+		final String query) {
+		return companyJpaRepository.findByIsuNmContainingOrIsuAbbrvContainingOrIsuEngNmContainingOrIsuSrtCdContaining(
+			query,
+			query, query, query);
 	}
 
 	@Override

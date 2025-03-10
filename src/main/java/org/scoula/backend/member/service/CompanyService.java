@@ -24,7 +24,8 @@ public class CompanyService {
 	 * @return 검색된 회사 리스트
 	 */
 	public List<CompanySearchResponseDto> searchCompanies(final String query) {
-		return companyRepository.findByIsuNmContainingOrIsuSrtCdContaining(query)
+		return companyRepository.findByIsuNmContainingOrIsuAbbrvContainingOrIsuEngNmContainingOrIsuSrtCdContaining(
+				query)
 			.stream()
 			.map(CompanySearchResponseDto::fromEntity) // 검색 전용 DTO로 변환
 			.collect(Collectors.toList());
