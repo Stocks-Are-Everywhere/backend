@@ -1,15 +1,17 @@
 package org.scoula.backend.order.service;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.scoula.backend.member.domain.Account;
+import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
-import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
-import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
+import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
@@ -22,10 +24,10 @@ import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
 import org.scoula.backend.order.service.validator.OrderValidator;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -65,7 +67,7 @@ public class OrderService {
 	// 종가 기준 가격 검증
 	private void validateClosingPrice(final BigDecimal price, final String companyCode) {
 		final Company company = companyRepository.findByIsuSrtCd(companyCode)
-				.orElseThrow(PriceOutOfRangeException::new);
+			.orElseThrow(PriceOutOfRangeException::new);
 
 		if (!company.isWithinClosingPriceRange(price)) {
 			throw new PriceOutOfRangeException();
@@ -91,7 +93,7 @@ public class OrderService {
 	// 종목별 주문장 생성, 이미 존재할 경우 반환
 	public OrderBookService addOrderBook(final String companyCode) {
 		return orderBooks.computeIfAbsent(companyCode, k ->
-				new OrderBookService(companyCode, tradeHistoryService));
+			new OrderBookService(companyCode, tradeHistoryService));
 	}
 
 	// 주문 발생 시 호가창 업데이트 브로드캐스트
@@ -119,6 +121,19 @@ public class OrderService {
 
 	public List<TradeHistoryResponse> getTradeHistory() {
 		return tradeHistoryService.getTradeHistory();
+	}
+
+	public Map<String, OrderSummaryResponse> getAllOrderSummaries() {
+		Map<String, OrderSummaryResponse> summaries = new HashMap<>();
+
+		for (Map.Entry<String, OrderBookService> entry : orderBooks.entrySet()) {
+			String companyCode = entry.getKey();
+			OrderBookService orderBook = entry.getValue();
+			OrderSummaryResponse summary = orderBook.getSummary();
+			summaries.put(companyCode, summary);
+		}
+
+		return summaries;
 	}
 
 }
