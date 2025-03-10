@@ -71,9 +71,6 @@ class TradeHistoryServiceTest {
 	private static final int MAX_TRADE_HISTORY = 1000; // 종목당 최대 보관 거래 수
 	private static final int CANDLE_KEEP_NUMBER = 100; // 캔들 데이터 보관 개수
 
-	private final Order sellOrder = createOrder(101L, Type.SELL);
-	private final Order buyOrder = createOrder(201L, Type.BUY);
-
 	@Nested
 	@TestMethodOrder(MethodOrderer.DisplayName.class)
 	@DisplayName("7. 캔들 데이터 성성 및 관리 테스트")
@@ -84,8 +81,6 @@ class TradeHistoryServiceTest {
 		void saveTradeHistory_ShouldStoreTradeAndUpdateCandles() {
 			// Given
 			TradeHistoryResponse tradeResponse = createMockTradeHistoryResponse(TEST_COMPANY_CODE);
-			when(orderRepository.findById(101L)).thenReturn(Optional.of(sellOrder));
-			when(orderRepository.findById(201L)).thenReturn(Optional.of(buyOrder));
 
 			// When
 			tradeHistoryService.saveTradeHistory(tradeResponse);
@@ -116,8 +111,6 @@ class TradeHistoryServiceTest {
 		void shouldReflectTradeInMultipleTimeFrames() {
 			// Given: 테스트 거래 생성
 			TradeHistoryResponse trade = createMockTradeHistoryResponse(TEST_COMPANY_CODE);
-			when(orderRepository.findById(101L)).thenReturn(Optional.of(sellOrder));
-			when(orderRepository.findById(201L)).thenReturn(Optional.of(buyOrder));
 
 			// When: 거래 저장 및 캔들 업데이트
 			tradeHistoryService.saveTradeHistory(trade);
@@ -148,7 +141,6 @@ class TradeHistoryServiceTest {
 			// Given: 장시간의 거래 데이터 생성 (1시간 분량)
 			long baseTime = Instant.now().truncatedTo(ChronoUnit.HOURS).getEpochSecond();
 			List<TradeHistoryResponse> trades = new ArrayList<>();
-			when(orderRepository.findById(any())).thenReturn(Optional.of(sellOrder));
 
 			// 1시간 동안 5분마다 거래 생성 (총 12개 거래)
 			for (int i = 0; i < 12; i++) {
@@ -235,7 +227,7 @@ class TradeHistoryServiceTest {
 					.price(BigDecimal.valueOf(57500))
 					.tradeTime(Instant.now().getEpochSecond()) // 1분 간격
 					.build();
-			when(orderRepository.findById(any())).thenReturn(Optional.of(sellOrder));
+
 			tradeHistoryService.saveTradeHistory(firstResponse);
 
 			TradeHistoryResponse secondResponse = TradeHistoryResponse.builder()
@@ -264,7 +256,6 @@ class TradeHistoryServiceTest {
 			// Given: 기준 시간 설정
 			long currentTime = Instant.now().getEpochSecond();
 			long twoHoursAgo = currentTime - 7200; // 2시간 전
-			when(orderRepository.findById(any())).thenReturn(Optional.of(sellOrder));
 
 			// 2시간 전 거래와 현재 거래 생성 (중간에 거래 없음)
 			TradeHistoryResponse oldTrade = TradeHistoryResponse.builder()
@@ -308,10 +299,10 @@ class TradeHistoryServiceTest {
 			List<String> companyCodes = List.of(TEST_COMPANY_CODE);
 			List<TradeHistory> mockTrades = createMockTradeHistoriesInReverseOrder(TEST_COMPANY_CODE, 5);
 
-			when(tradeHistoryRepository.findDistinctCompanyCodes()).thenReturn(companyCodes);
 			// MAX_TRADE_HISTORY 값을 직접 참조
 			when(tradeHistoryRepository.findRecentTradesByCompanyCode(eq(TEST_COMPANY_CODE), eq(MAX_TRADE_HISTORY)))
 					.thenReturn(mockTrades);
+			when(tradeHistoryRepository.findDistinctCompanyCodes()).thenReturn(companyCodes);
 
 			// When
 			tradeHistoryService.loadTradeHistoryFromDb();
@@ -356,7 +347,6 @@ class TradeHistoryServiceTest {
 						.build();
 				trades.add(trade);
 			}
-			when(orderRepository.findById(any())).thenReturn(Optional.of(sellOrder));
 
 			// When
 			// 모든 거래 내역 저장
@@ -416,7 +406,6 @@ class TradeHistoryServiceTest {
 
 
 			// 거래 내역 저장
-			when(orderRepository.findById(any())).thenReturn(Optional.of(sellOrder));
 			tradeHistoryService.saveTradeHistory(trade);
 
 			// When: 유효하지 않은 시간대 코드로 차트 요청
@@ -487,7 +476,6 @@ class TradeHistoryServiceTest {
 					.tradeTime(currentTime - 1800) // 30분 전
 					.build();
 
-			when(orderRepository.findById(any())).thenReturn(Optional.of(sellOrder));
 			// 순서대로 저장 (이 순서는 거래 저장 순서이며, 시간은 섞여 있음)
 			tradeHistoryService.saveTradeHistory(trade1);
 			tradeHistoryService.saveTradeHistory(trade2);
@@ -544,7 +532,6 @@ class TradeHistoryServiceTest {
 			// Given
 			// 유효한 거래 생성 및 저장
 			TradeHistoryResponse validTrade = createMockTradeHistoryResponse(TEST_COMPANY_CODE);
-			when(orderRepository.findById(any())).thenReturn(Optional.of(sellOrder));
 			tradeHistoryService.saveTradeHistory(validTrade);
 
 			// 맵에 접근하여 유효하지 않은 캔들 추가
@@ -638,7 +625,7 @@ class TradeHistoryServiceTest {
 					.quantity(BigDecimal.valueOf(7))
 					.tradeTime(currentCandleStartTime)
 					.build();
-			when(orderRepository.findById(any())).thenReturn(Optional.of(sellOrder));
+
 			// When
 			// 거래 저장 - 세 거래 모두 동일한 캔들에 반영되어야 함
 			tradeHistoryService.saveTradeHistory(trade1);
@@ -708,20 +695,6 @@ class TradeHistoryServiceTest {
 				.quantity(BigDecimal.valueOf(10))
 				.price(BigDecimal.valueOf(57500))
 				.tradeTime(Instant.now().getEpochSecond())
-				.build();
-	}
-
-	private Order createOrder(Long id, Type type) {
-		return Order.builder()
-				.id(id)
-				.companyCode("005930")
-				.type(type)
-				.totalQuantity(new BigDecimal("10"))
-				.remainingQuantity(new BigDecimal("10"))
-				.status(OrderStatus.ACTIVE)
-				.price(new BigDecimal("1000"))
-				.timestamp(Instant.now().getEpochSecond())
-				.status(OrderStatus.ACTIVE)
 				.build();
 	}
 

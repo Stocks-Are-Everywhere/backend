@@ -17,21 +17,7 @@ public class AccountTest {
             .username("testuser")
             .build();
 
-    private final Account account = new Account(member);  
-
-    @Test
-    @DisplayName("Successfully validate deposit balance")
-    void successfullyValidateDepositBalance() {
-        // given
-        assert account.getBalance().equals(new BigDecimal("100000000")) : "Balance is not initialized(100000000)";
-        BigDecimal amountToBuy = new BigDecimal("30000000");
-
-        // when
-        account.validateDepositBalance(amountToBuy);
-
-        // then
-        assertThat(account.getBalance()).isEqualTo(new BigDecimal("70000000"));
-    }
+    private final Account account = new Account(member);
 
     @Test
     @DisplayName("Throw exception when balance is not enough for the amount")

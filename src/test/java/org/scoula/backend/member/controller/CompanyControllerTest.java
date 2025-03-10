@@ -108,13 +108,13 @@ class CompanyControllerTest {
 		when(companyService.searchCompanies(query)).thenReturn(Collections.singletonList(mockCompany));
 
 		mockMvc.perform(get("/api/companies/search")
-				.param("query", query))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$[0].isuNm").value("삼성전자"))
-			.andExpect(jsonPath("$[0].isuSrtCd").value("005930"))
-			.andExpect(jsonPath("$[0].mktTpNm").value("KOSPI"))
-			.andExpect(jsonPath("$[0].secugrpNm").value("주권"))
-			.andExpect(jsonPath("$[0].isuAbbrv").value("삼성전자"));
+						.param("query", query))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[0].isuNm").value("삼성전자"))
+				.andExpect(jsonPath("$[0].isuSrtCd").value("005930"))
+				.andExpect(jsonPath("$[0].isuAbbrv").value("KOSPI"))
+				.andExpect(jsonPath("$[0].isuEngNm").value("주권"))
+				.andExpect(jsonPath("$[0].kindStkcertTpNm").value("삼성전자"));
 
 		verify(companyService).searchCompanies(query);
 	}

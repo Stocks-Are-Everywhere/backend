@@ -7,12 +7,14 @@ import static org.mockito.Mockito.*;
 import java.math.BigDecimal;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.domain.MemberRoleEnum;
@@ -55,6 +57,11 @@ public class OrderLimitTest {
 
     Company company = Company.builder().isuCd("심상전자").isuNm("005930").closingPrice(new BigDecimal(1000)).build();
     Member member = Member.builder().id(1L).username("username").googleId("googleId").role(MemberRoleEnum.USER).build();
+
+    @BeforeEach
+    void setUp() {
+        member.createAccount();
+    }
 
     @Test
     @DisplayName("입력된 가격이 종가 기준 상향 30% 이상일 경우 정상적으로 처리한다.")
