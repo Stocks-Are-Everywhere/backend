@@ -38,8 +38,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class TradeHistoryService {
-	private final TradeHistoryRepositoryImpl tradeHistoryRepository;
-	private final OrderRepositoryImpl orderRepository;
+	private final TradeHistoryRepository tradeHistoryRepository;
+	private final OrderRepository orderRepository;
 	private final SimpMessagingTemplate messagingTemplate;
 
 	// 상수 정의

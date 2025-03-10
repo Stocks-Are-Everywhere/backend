@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -149,7 +150,7 @@ class OrderControllerTest {
 			.buyOrderId(101L)
 			.quantity(new BigDecimal("10"))
 			.price(new BigDecimal("150.00"))
-			.tradeTime(LocalDateTime.now())
+			.tradeTime(Instant.now().getEpochSecond())
 			.build();
 		response.add(tradeHistory);
 		when(orderService.getTradeHistory()).thenReturn(response);

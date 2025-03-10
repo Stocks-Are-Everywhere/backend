@@ -9,10 +9,8 @@ import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.domain.SavedStock;
 import org.scoula.backend.member.exception.NotAuthorizedException;
 import org.scoula.backend.member.exception.ResourceNotFoundException;
-import org.scoula.backend.member.repository.CompanyJpaRepository;
-import org.scoula.backend.member.repository.SavedStockJpaRepository;
-import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
-import org.scoula.backend.member.repository.impls.SavedStockRepositoryImpl;
+import org.scoula.backend.member.service.reposiotry.CompanyRepository;
+import org.scoula.backend.member.service.reposiotry.SavedStockRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -24,8 +22,9 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class SavedStockService {
-    private final SavedStockRepositoryImpl savedStockJpaRepository;
-    private final CompanyRepositoryImpl companyJpaRepository;
+
+    private final SavedStockRepository savedStockRepository;
+    private final CompanyRepository companyRepository;
 
     /**
      * Getting list of stock saved by the member
@@ -35,7 +34,7 @@ public class SavedStockService {
      */
     public ResponseEntity<ApiResponse<List<SavedStockResponseDto>>> stockGet(Member member) {
 
-        List<SavedStock> savedStockList = savedStockJpaRepository.findAllByMember(member).orElseThrow(
+        List<SavedStock> savedStockList = savedStockRepository.findAllByMember(member).orElseThrow(
                 () -> new ResourceNotFoundException("유효하지않은 정보입니다.")
         );
 
@@ -64,7 +63,7 @@ public class SavedStockService {
      * @return ResponseEntity containing the result message.
      */
     public ResponseEntity<ApiResponse<String>> stockSave(Member member, String tickerCode) {
-        Company company = companyJpaRepository.findByIsuSrtCd(tickerCode).orElseThrow(() -> new ResourceNotFoundException("유효하지 않은 종목코드 입니다."));
+        Company company = companyRepository.findByIsuSrtCd(tickerCode).orElseThrow(() -> new ResourceNotFoundException("유효하지 않은 종목코드 입니다."));
 
         SavedStock savedStock = SavedStock.builder()
                 .member(member)
@@ -72,7 +71,7 @@ public class SavedStockService {
                 .context("N/A")
                 .build();
 
-        savedStockJpaRepository.save(savedStock);
+        savedStockRepository.save(savedStock);
 
         return ResponseEntity.status(HttpStatus.OK)
                 .body(new ApiResponse<>(
@@ -102,7 +101,7 @@ public class SavedStockService {
     }
 
     private SavedStock findByIdSavedStockAuthCheck(Long memberId, Long savedStockId) {
-        SavedStock savedStock = savedStockJpaRepository.findById(savedStockId).orElseThrow(() -> new ResourceNotFoundException("유효하지 않은 정보입니다."));
+        SavedStock savedStock = savedStockRepository.findById(savedStockId).orElseThrow(() -> new ResourceNotFoundException("유효하지 않은 정보입니다."));
         if (!savedStock.getMember().getId().equals(memberId) || savedStock.isDeleted())
             throw new NotAuthorizedException("잘못된 요청입니다.");
         return savedStock;

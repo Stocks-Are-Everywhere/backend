@@ -25,6 +25,9 @@ import org.scoula.backend.member.exception.MemberNotFoundException;
 import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
 import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
 import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
+import org.scoula.backend.member.service.reposiotry.AccountRepository;
+import org.scoula.backend.member.service.reposiotry.CompanyRepository;
+import org.scoula.backend.member.service.reposiotry.MemberRepository;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
@@ -44,16 +47,19 @@ class OrderServiceTest {
 	OrderService orderService;
 
 	@Mock
-	AccountRepositoryImpl accountRepository;
+	AccountRepository accountRepository;
 
 	@Mock
-	MemberRepositoryImpl memberRepository;
+	MemberRepository memberRepository;
 
 	@Mock
-	CompanyRepositoryImpl companyRepository;
+	CompanyRepository companyRepository;
 
 	@Mock
 	TradeHistoryService tradeHistoryService;
+
+	@Mock
+	OrderRepository orderRepository;
 
 	private final Company company = Company.builder().isuNm("AAPL").isuCd("AAPL").closingPrice(new BigDecimal("150.00")).build();
 	private final Member member = Member.builder().id(1L).username("username").googleId("googleId").role(MemberRoleEnum.USER).build();
@@ -63,7 +69,7 @@ class OrderServiceTest {
 		MockitoAnnotations.openMocks(this);
 
 		orderService = new OrderService(messagingTemplate, tradeHistoryService, companyRepository, accountRepository,
-			memberRepository);
+			memberRepository, orderRepository);
 	}
 
 	@Test

@@ -6,10 +6,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.member.domain.Member;
-import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
-import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
 import org.scoula.backend.member.domain.Company;
-import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
+import org.scoula.backend.member.service.reposiotry.AccountRepository;
+import org.scoula.backend.member.service.reposiotry.CompanyRepository;
+import org.scoula.backend.member.service.reposiotry.MemberRepository;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
@@ -17,7 +17,6 @@ import org.scoula.backend.order.controller.response.OrderSummaryResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.dto.OrderDto;
-import org.scoula.backend.order.repository.OrderRepositoryImpl;
 import org.scoula.backend.order.service.exception.CompanyNotFound;
 import org.scoula.backend.order.service.exception.MatchingException;
 import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
@@ -41,12 +40,12 @@ public class OrderService {
 
 	private final TradeHistoryService tradeHistoryService;
 
-	private final CompanyRepositoryImpl companyRepository;
+	private final CompanyRepository companyRepository;
 
-	private final AccountRepositoryImpl accountRepository;
+	private final AccountRepository accountRepository;
 
-	private final MemberRepositoryImpl memberRepository;
-	private final OrderRepositoryImpl orderRepositoryImpl;
+	private final MemberRepository memberRepository;
+	private final OrderRepository orderRepository;
 
 	// 지정가 주문
 	public void placeOrder(final OrderRequest request, final String username) throws MatchingException {
@@ -59,7 +58,7 @@ public class OrderService {
 		validateClosingPrice(price, request.companyCode());
 
 		final Order order = createOrder(request, username);
-		orderRepositoryImpl.save(order);
+		orderRepository.save(order);
 
 		// 주문 처리
 		processOrder(order);

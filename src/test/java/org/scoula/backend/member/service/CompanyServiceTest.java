@@ -19,12 +19,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.scoula.backend.member.controller.response.CompanySearchResponseDto;
 import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
+import org.scoula.backend.member.service.reposiotry.CompanyRepository;
 
 @ExtendWith(MockitoExtension.class)
 public class CompanyServiceTest {
 
 	@Mock
-	private CompanyRepositoryImpl companyRepositoryImpl;
+	private CompanyRepository companyRepository;
 
 	@InjectMocks
 	private CompanyService companyService;
@@ -61,7 +62,7 @@ public class CompanyServiceTest {
 	void TC2_1_3_종목검색_정상케이스() {
 		// Given
 		String query = "삼성";
-		when(companyRepositoryImpl.findByIsuNmContainingOrIsuSrtCdContaining(query))
+		when(companyRepository.findByIsuNmContainingOrIsuSrtCdContaining(query))
 			.thenReturn(Collections.singletonList(sampleCompanies.get(0)));
 
 		// When
@@ -70,7 +71,7 @@ public class CompanyServiceTest {
 		// Then
 		assertThat(result).hasSize(1);
 		assertThat(result.get(0).getIsuNm()).isEqualTo("삼성전자");
-		verify(companyRepositoryImpl).findByIsuNmContainingOrIsuSrtCdContaining(query);
+		verify(companyRepository).findByIsuNmContainingOrIsuSrtCdContaining(query);
 	}
 
 	@Test
@@ -78,7 +79,7 @@ public class CompanyServiceTest {
 	void TC2_3_1_존재하지않는종목검색() {
 		// Given
 		String query = "존재하지않는회사";
-		when(companyRepositoryImpl.findByIsuNmContainingOrIsuSrtCdContaining(query))
+		when(companyRepository.findByIsuNmContainingOrIsuSrtCdContaining(query))
 			.thenReturn(Collections.emptyList());
 
 		// When
@@ -86,7 +87,7 @@ public class CompanyServiceTest {
 
 		// Then
 		assertThat(result).isEmpty();
-		verify(companyRepositoryImpl).findByIsuNmContainingOrIsuSrtCdContaining(query);
+		verify(companyRepository).findByIsuNmContainingOrIsuSrtCdContaining(query);
 	}
 
 	@Test
@@ -103,7 +104,7 @@ public class CompanyServiceTest {
 				"Company" + i
 			))
 			.collect(Collectors.toList());
-		when(companyRepositoryImpl.findByIsuNmContainingOrIsuSrtCdContaining(query))
+		when(companyRepository.findByIsuNmContainingOrIsuSrtCdContaining(query))
 			.thenReturn(largeCompanyList);
 
 		// When
@@ -111,7 +112,7 @@ public class CompanyServiceTest {
 
 		// Then
 		assertThat(result).hasSize(1000);
-		verify(companyRepositoryImpl).findByIsuNmContainingOrIsuSrtCdContaining(query);
+		verify(companyRepository).findByIsuNmContainingOrIsuSrtCdContaining(query);
 	}
 
 	@Test
@@ -120,7 +121,7 @@ public class CompanyServiceTest {
 		// Given
 		String query = "NAVER";
 		Company company = sampleCompanies.get(1);
-		when(companyRepositoryImpl.findByIsuNmContainingOrIsuSrtCdContaining(query))
+		when(companyRepository.findByIsuNmContainingOrIsuSrtCdContaining(query))
 			.thenReturn(Collections.singletonList(company));
 
 		// When
@@ -148,7 +149,7 @@ public class CompanyServiceTest {
 				"Test Company" + i
 			))
 			.collect(Collectors.toList());
-		when(companyRepositoryImpl.findByIsuNmContainingOrIsuSrtCdContaining(query))
+		when(companyRepository.findByIsuNmContainingOrIsuSrtCdContaining(query))
 			.thenReturn(companies);
 
 		// When
@@ -156,7 +157,7 @@ public class CompanyServiceTest {
 
 		// Then
 		assertThat(result).hasSize(100);
-		verify(companyRepositoryImpl).findByIsuNmContainingOrIsuSrtCdContaining(query);
+		verify(companyRepository).findByIsuNmContainingOrIsuSrtCdContaining(query);
 	}
 }
 
