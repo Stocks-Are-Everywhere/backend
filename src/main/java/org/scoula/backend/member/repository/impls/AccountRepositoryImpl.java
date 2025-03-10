@@ -17,4 +17,13 @@ public class AccountRepositoryImpl {
 		return accountJpaRepository.findByMemberId(memberId)
 				.orElseThrow(AccountNotFoundException::new);
 	}
+
+	public Account getById(final Long id) {
+		return accountJpaRepository.findById(id)
+				.orElseThrow(AccountNotFoundException::new);
+	}
+
+	public Account save(final Account account) {
+		return accountJpaRepository.save(account);
+	}
 }

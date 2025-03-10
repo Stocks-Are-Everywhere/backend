@@ -57,18 +57,15 @@ public class Order extends BaseEntity {
 	private BigDecimal price;
 
 	@ManyToOne(fetch = LAZY)
-	@JoinColumn(name = "account_id", nullable = true)
-	private Account account = null;
+	@JoinColumn(name = "account_id", nullable = false)
+	private Account account;
 
 	@Column(nullable = false)
 	private Long timestamp;
 
 	// BigDecimal는 불변 객체 입니다.
-	public void updateQuantity(final BigDecimal quantity) {
+	public void decreaseRemainingQuantity(final BigDecimal quantity) {
 		this.remainingQuantity = this.remainingQuantity.subtract(quantity);
-	}
-
-	public void completeIfNoRemainingQuantity() {
 		if (this.remainingQuantity.compareTo(BigDecimal.ZERO) == 0) {
 			this.status = OrderStatus.COMPLETE;
 		}

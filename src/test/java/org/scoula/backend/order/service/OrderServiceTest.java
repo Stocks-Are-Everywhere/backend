@@ -24,7 +24,10 @@ import org.scoula.backend.member.domain.MemberRoleEnum;
 import org.scoula.backend.member.exception.MemberNotFoundException;
 import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
 import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
+import org.scoula.backend.member.repository.impls.HoldingsRepositoryImpl;
 import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
+import org.scoula.backend.member.service.AccountService;
+import org.scoula.backend.member.service.StockHoldingsService;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
@@ -54,29 +57,31 @@ class OrderServiceTest {
 	CompanyRepositoryImpl companyRepository;
 
 	@Mock
+	OrderRepositoryImpl orderRepository;
+
+	@Mock
+	HoldingsRepositoryImpl holdingsRepository;
+
+	@Mock
 	TradeHistoryService tradeHistoryService;
 
 	@Mock
-	OrderRepositoryImpl orderRepositoryimpl;
+	StockHoldingsService stockHoldingsService;
 
-	private final Company company = Company.builder()
-		.isuNm("AAPL")
-		.isuCd("AAPL")
-		.closingPrice(new BigDecimal("150.00"))
-		.build();
-	private final Member member = Member.builder()
-		.id(1L)
-		.username("username")
-		.googleId("googleId")
-		.role(MemberRoleEnum.USER)
-		.build();
+	@Mock
+	AccountService accountService;
+
+
+
+	private final Company company = Company.builder().isuNm("AAPL").isuCd("AAPL").closingPrice(new BigDecimal("150.00")).build();
+	private final Member member = Member.builder().id(1L).username("username").googleId("googleId").role(MemberRoleEnum.USER).build();
 
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
 
-		orderService = new OrderService(messagingTemplate, tradeHistoryService, companyRepository, accountRepository,
-			memberRepository, orderRepositoryimpl);
+		orderService = new OrderService(messagingTemplate, tradeHistoryService, companyRepository,
+			memberRepository, holdingsRepository, orderRepository, stockHoldingsService, accountService);
 	}
 
 	@Test
@@ -274,4 +279,16 @@ class OrderServiceTest {
 			1L
 		);
 	}
+
+	@Test
+	@DisplayName("매도 주문 시 보유 주식이 없다면 예외를 반환한다.")
+	void sellOrderFailedWhenUserHasNoStock() {}
+
+	@Test
+	@DisplayName("매도 주문 시 주문 가능한 매도 가능 수량을 초과하면 예외를 반환한다.")
+	void sellOrderFailedWhenSellOrderQuantityExceedsAvailableQuantity() {}
+
+	@Test
+	@DisplayName("매수 주문 시 사용자 잔액이 부족한 경우 예외를 반환한다.")
+	void BuyOrderFailedWhenUserHasInsufficientBalance() {}
 }
