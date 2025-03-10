@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.text.DecimalFormat;
 import java.text.ParseException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -14,9 +15,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.json.simple.JSONObject;
-import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.KisStockResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
+import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.KisStockHogaDto;
@@ -252,23 +253,25 @@ public class KisWebSocketClient {
 	private void handleHogaDataMessage(String stockCode, String payload) {
 		try {
 			final KisStockHogaDto stockData = parseKisHogaData(payload);
+			final Long now = Instant.now().getEpochSecond();
 
 			// 매도 호가
 			for (int i = 0; i < 10; i++) {
 				final BigDecimal price = stockData.askPrices().get(i);
 				final BigDecimal quantity = stockData.askRemains().get(i);
 
-				final OrderRequest request = OrderRequest.builder()
+				final Order order = Order.builder()
 						.companyCode(stockData.stockCode())
 						.type(Type.SELL)
 						.totalQuantity(quantity)
 						.remainingQuantity(quantity)
 						.status(OrderStatus.ACTIVE)
 						.price(price)
-						.accountId(1L)
+						.account(null)
+						.timestamp(now)
 						.build();
 
-//				orderService.placeOrder(request);
+				orderService.processOrder(order);
 			}
 
 			// 매수 호가
@@ -276,17 +279,18 @@ public class KisWebSocketClient {
 				final BigDecimal price = stockData.bidPrices().get(i);
 				final BigDecimal quantity = stockData.bidRemains().get(i);
 
-				final OrderRequest request = OrderRequest.builder()
+				final Order order = Order.builder()
 						.companyCode(stockData.stockCode())
 						.type(Type.BUY)
 						.totalQuantity(quantity)
 						.remainingQuantity(quantity)
 						.status(OrderStatus.ACTIVE)
 						.price(price)
-						.accountId(1L)
+						.account(null)
+						.timestamp(now)
 						.build();
 
-//				orderService.placeOrder(request);
+				orderService.processOrder(order);
 			}
 		} catch (Exception e) {
 			log.error("Error handling hoga data message: {}", e.getMessage());

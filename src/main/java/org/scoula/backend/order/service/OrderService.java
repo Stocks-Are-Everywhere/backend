@@ -5,11 +5,11 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.scoula.backend.member.domain.Account;
+import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
-import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
-import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
+import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
@@ -24,10 +24,10 @@ import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
 import org.scoula.backend.order.service.validator.OrderValidator;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -81,7 +81,7 @@ public class OrderService {
 		return new OrderDto(request).to(account);
 	}
 
-	private void processOrder(final Order order) throws MatchingException {
+	public void processOrder(final Order order) throws MatchingException {
 		final OrderBookService orderBook = addOrderBook(order.getCompanyCode());
 		orderBook.received(order);
 
