@@ -1,7 +1,9 @@
 package org.scoula.backend.order.service;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.scoula.backend.member.domain.Account;
@@ -68,7 +70,7 @@ public class OrderService {
 	// 종가 기준 가격 검증
 	private void validateClosingPrice(final BigDecimal price, final String companyCode) {
 		final Company company = companyRepository.findByIsuSrtCd(companyCode)
-				.orElseThrow(CompanyNotFound::new);
+			.orElseThrow(PriceOutOfRangeException::new);
 
 		if (!company.isWithinClosingPriceRange(price)) {
 			throw new PriceOutOfRangeException();
@@ -93,7 +95,7 @@ public class OrderService {
 	// 종목별 주문장 생성, 이미 존재할 경우 반환
 	public OrderBookService addOrderBook(final String companyCode) {
 		return orderBooks.computeIfAbsent(companyCode, k ->
-				new OrderBookService(companyCode, tradeHistoryService));
+			new OrderBookService(companyCode, tradeHistoryService));
 	}
 
 	// 주문 발생 시 호가창 업데이트 브로드캐스트
@@ -121,6 +123,19 @@ public class OrderService {
 
 	public List<TradeHistoryResponse> getTradeHistory() {
 		return tradeHistoryService.getTradeHistory();
+	}
+
+	public Map<String, OrderSummaryResponse> getAllOrderSummaries() {
+		Map<String, OrderSummaryResponse> summaries = new HashMap<>();
+
+		for (Map.Entry<String, OrderBookService> entry : orderBooks.entrySet()) {
+			String companyCode = entry.getKey();
+			OrderBookService orderBook = entry.getValue();
+			OrderSummaryResponse summary = orderBook.getSummary();
+			summaries.put(companyCode, summary);
+		}
+
+		return summaries;
 	}
 
 }

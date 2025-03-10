@@ -363,6 +363,7 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매수 주문시, 모든 조건이 일치할 경우 수량이 많은 주문부터 체결한다.")
 	void buyOrderQuantityPriorityMatching() throws MatchingException {
+
 		Long createdAt = Instant.now().getEpochSecond();
 		Order buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
@@ -383,6 +384,7 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매도 주문시, 모든 조건이 일치할 경우 수량이 많은 주문부터 체결한다.")
 	void sellOrderQuantityPriorityMatching() throws MatchingException {
+
 		Long createdAt = Instant.now().getEpochSecond();
 		Order sellOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
