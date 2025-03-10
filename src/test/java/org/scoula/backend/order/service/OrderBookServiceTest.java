@@ -1,5 +1,6 @@
 package org.scoula.backend.order.service;
 
+import static org.assertj.core.api.AssertionsForClassTypes.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -7,7 +8,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -19,7 +20,6 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.Mock;
 import org.mockito.InjectMocks;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -391,7 +391,8 @@ class OrderBookServiceTest {
 	@Test
 	@DisplayName("매도 주문시, 모든 조건이 일치할 경우 수량이 많은 주문부터 체결한다.")
 	void sellOrderQuantityPriorityMatching() throws MatchingException {
-		LocalDateTime createdAt = LocalDateTime.of(2025, 3, 3, 0, 0);
+
+		Long createdAt = Instant.now().getEpochSecond();
 		Order sellOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE);
 		Order sellOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(11), createdAt,
@@ -597,7 +598,7 @@ class OrderBookServiceTest {
 		@DisplayName("TC8.1.6 호가 데이터 길이 검증")
 		void testOrderBookLengthValidation() {
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService, accountService);
+			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
 			
 			// 초기 호가창 상태 확인
 			OrderBookResponse initialOrderBook = orderBookService.getBook();
@@ -630,7 +631,7 @@ class OrderBookServiceTest {
 
 	}
 
-	private Order createOrder(Long id, Type type, BigDecimal price, BigDecimal quantity, LocalDateTime timestamp,
+	private Order createOrder(Long id, Type type, BigDecimal price, BigDecimal quantity, Long timestamp,
 			OrderStatus status) {
 		return Order.builder()
 				.id(id)

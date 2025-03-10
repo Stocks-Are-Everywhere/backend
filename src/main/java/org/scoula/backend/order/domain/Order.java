@@ -3,7 +3,6 @@ package org.scoula.backend.order.domain;
 import static jakarta.persistence.FetchType.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 import org.scoula.backend.global.entity.BaseEntity;
 import org.scoula.backend.member.domain.Account;
@@ -62,7 +61,7 @@ public class Order extends BaseEntity {
 	private Account account;
 
 	@Column(nullable = false)
-	private LocalDateTime timestamp;
+	private Long timestamp;
 
 	// BigDecimal는 불변 객체 입니다.
 	public void decreaseRemainingQuantity(final BigDecimal quantity) {

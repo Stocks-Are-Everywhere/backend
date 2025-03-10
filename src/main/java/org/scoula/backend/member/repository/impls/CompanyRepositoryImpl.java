@@ -23,9 +23,11 @@ public class CompanyRepositoryImpl {
 	 * @param query 검색어
 	 * @return 검색된 회사 리스트
 	 */
-	public List<Company> findByIsuNmContainingOrIsuSrtCdContaining(final String query) {
-		List<Company> companies = companyJpaRepository.findByIsuNmContainingOrIsuAbbrvContaining(query, query);
-		return companies;
+	public List<Company> findByIsuNmContainingOrIsuAbbrvContainingOrIsuEngNmContainingOrIsuSrtCdContaining(
+		final String query) {
+		return companyJpaRepository.findByIsuNmContainingOrIsuAbbrvContainingOrIsuEngNmContainingOrIsuSrtCdContaining(
+			query,
+			query, query, query);
 	}
 
 	public List<Company> findAll() {

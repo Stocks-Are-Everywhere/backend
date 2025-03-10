@@ -8,7 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CompanyJpaRepository extends JpaRepository<Company, Long> {
 
-	List<Company> findByIsuNmContainingOrIsuAbbrvContaining(String isuNm, String isuAbbrv);
+	List<Company> findByIsuNmContainingOrIsuAbbrvContainingOrIsuEngNmContainingOrIsuSrtCdContaining(String isuNm,
+		String isuAbbrv,
+		String isuEngNm, String isuSrtCd);
 
 	Optional<Company> findByIsuSrtCd(String isuSrtCd);
 
