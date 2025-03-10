@@ -1,7 +1,6 @@
 package org.scoula.backend.order.domain;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 import org.scoula.backend.global.entity.BaseEntity;
 
@@ -47,6 +46,6 @@ public class TradeHistory extends BaseEntity {
 	private BigDecimal quantity; // 체결 수량
 
 	@Column(nullable = false)
-	private LocalDateTime tradeTime; // 체결 시간
+	private Long tradeTime; // 체결 시간
 
 }

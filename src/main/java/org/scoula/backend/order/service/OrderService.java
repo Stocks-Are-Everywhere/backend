@@ -19,6 +19,8 @@ import org.scoula.backend.order.controller.response.OrderSummaryResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.dto.OrderDto;
+import org.scoula.backend.order.repository.OrderRepositoryImpl;
+import org.scoula.backend.order.service.exception.CompanyNotFound;
 import org.scoula.backend.order.service.exception.MatchingException;
 import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
 import org.scoula.backend.order.service.validator.OrderValidator;
@@ -46,9 +48,9 @@ public class OrderService {
 	private final AccountRepositoryImpl accountRepository;
 
 	private final MemberRepositoryImpl memberRepository;
+	private final OrderRepositoryImpl orderRepositoryImpl;
 
 	// 지정가 주문
-	@Transactional
 	public void placeOrder(final OrderRequest request, final String username) throws MatchingException {
 		// 지정가 주문 가격 견적 유효성 검증
 		final BigDecimal price = request.price();
@@ -59,6 +61,7 @@ public class OrderService {
 		validateClosingPrice(price, request.companyCode());
 
 		final Order order = createOrder(request, username);
+		orderRepositoryImpl.save(order);
 
 		// 주문 처리
 		processOrder(order);
@@ -80,8 +83,7 @@ public class OrderService {
 		return new OrderDto(request).to(account);
 	}
 
-	// 주문 처리
-	private void processOrder(final Order order) throws MatchingException {
+	public void processOrder(final Order order) throws MatchingException {
 		final OrderBookService orderBook = addOrderBook(order.getCompanyCode());
 		orderBook.received(order);
 
