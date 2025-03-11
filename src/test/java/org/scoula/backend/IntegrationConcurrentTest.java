@@ -98,12 +98,25 @@ public class IntegrationConcurrentTest {
         ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT);
         CountDownLatch latch = new CountDownLatch(THREAD_COUNT * 2);
 
+        long startBuy = System.currentTimeMillis();
         AtomicInteger buyExceptionCount = processBuyOrders(executorService, latch);
+        long endBuy = System.currentTimeMillis();
+
+        Thread.sleep(5000);
+
+        long startSell = System.currentTimeMillis();
         AtomicInteger sellExceptionCount = processSellOrders(executorService, latch);
+
 
         latch.await();
         executorService.shutdown();
+        long endSell = System.currentTimeMillis();
         Thread.sleep(5000);
+
+        long durationTimeSec = (endBuy - startBuy) + (endSell - startSell);
+
+        System.out.println(durationTimeSec + "m/s");
+        System.out.println((durationTimeSec / 1000) + "sec");
 
         verifyTradeResults(buyExceptionCount.get(), sellExceptionCount.get());
     }
@@ -128,11 +141,12 @@ public class IntegrationConcurrentTest {
                             List<OrderRequest> orders, AtomicInteger exceptionCount) {
         for (int i = 0; i < orders.size(); i++) {
             OrderRequest order = orders.get(i);
+            int finalI = i;
             executorService.execute(() -> {
                 try {
                     orderService.placeOrder(order, TEST_USERNAME);
                 } catch (Exception e) {
-                    System.out.println("[Exception] " + e.fillInStackTrace() + ": " + e.getMessage());
+                    System.out.println(finalI + " [Exception] " + e.fillInStackTrace() + ": " + e.getMessage());
                     Arrays.stream(e.getSuppressed()).forEach(suppressed -> System.out.println("Suppressed: " + suppressed));
                     exceptionCount.getAndIncrement();
                 } finally {
@@ -144,9 +158,9 @@ public class IntegrationConcurrentTest {
 
     private List<OrderRequest> createOrderRequests(Type type) {
         List<OrderRequest> orders = new ArrayList<>();
-        for (int i = 0; i < THREAD_COUNT / 2; i++) {
+        for (int i = 0; i < THREAD_COUNT; i++) {
             orders.add(createOrderRequest(type, TEST_ORDER_QUANTITY, TEST_PRICE));
-            orders.add(createOrderRequest(type, TEST_ORDER_QUANTITY, TEST_PRICE.add(new BigDecimal("100"))));
+//            orders.add(createOrderRequest(type, TEST_ORDER_QUANTITY, TEST_PRICE.add(new BigDecimal("100"))));
         }
         return orders;
     }

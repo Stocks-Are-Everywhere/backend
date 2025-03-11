@@ -1,14 +1,13 @@
 package org.scoula.backend.order.service.orderbook;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.Queue;
+import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentNavigableMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 import org.scoula.backend.member.service.AccountService;
 import org.scoula.backend.member.service.StockHoldingsService;
@@ -58,7 +57,7 @@ public class OrderBookService {
 	/**
 	 * 주문 접수 및 처리
 	 */
-	public synchronized void received(final Order order) {
+	public void received(final Order order) {
 		if (order.getStatus() == OrderStatus.MARKET) {
 			processMarketOrder(order);
 		} else {
@@ -181,7 +180,7 @@ public class OrderBookService {
 	/**
 	 * 주문 매칭 처리 - 변경 발생
 	 */
-	private void matchOrders(final OrderStorage existingOrders, final Order incomingOrder) {
+	private synchronized void matchOrders(final OrderStorage existingOrders, final Order incomingOrder) {
 		while (!existingOrders.isEmpty() && incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 1. 주문 매칭
 			TradeHistoryResponse response = existingOrders.match(incomingOrder);
@@ -194,7 +193,7 @@ public class OrderBookService {
 	/**
 	 * 주문장에 주문 추가
 	 */
-	private void addToOrderBook(final TreeMap<Price, OrderStorage> orderBook, final Order order) {
+	private synchronized void addToOrderBook(final TreeMap<Price, OrderStorage> orderBook, final Order order) {
 		if (order.getPrice().compareTo(BigDecimal.ZERO) == 0) {
 			return;
 		}
@@ -215,7 +214,7 @@ public class OrderBookService {
 	/**
 	 * 호가창 생성
 	 */
-	public OrderBookResponse getBook() {
+	public synchronized OrderBookResponse getBook() {
 		final List<PriceLevelDto> sellLevels = createAskLevels();
 		final List<PriceLevelDto> buyLevels = createBidLevels();
 		return OrderBookResponse.builder()
@@ -270,7 +269,7 @@ public class OrderBookService {
 	/**
 	 * 주문 수량 통계 계산
 	 */
-	public Integer getOrderVolumeStats(final TreeMap<Price, OrderStorage> orderMap) {
+	public Integer getOrderVolumeStats(final SortedMap<Price, OrderStorage> orderMap) {
 		return orderMap.values().stream()
 				.mapToInt(OrderStorage::size)
 				.sum();

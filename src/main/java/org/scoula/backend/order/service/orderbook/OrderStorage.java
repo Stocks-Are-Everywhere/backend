@@ -59,17 +59,8 @@ public class OrderStorage {
                 .build();
     }
 
-
-    public Order getFirst() {
-        return this.elements.peek();
-    }
-
     public boolean isEmpty() {
         return elements.isEmpty();
-    }
-
-    public void remove(Order order) {
-        elements.remove(order);
     }
 
     public void offer(Order order) {
