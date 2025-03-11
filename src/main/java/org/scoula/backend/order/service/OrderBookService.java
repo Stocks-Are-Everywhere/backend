@@ -199,6 +199,12 @@ public class OrderBookService {
 	private void matchOrders(final Queue<Order> existingOrders, final Order incomingOrder) {
 		while (!existingOrders.isEmpty() && incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			final Order existingOrder = existingOrders.peek();
+
+			// 동일 유저 주문 체결 방지
+			if (incomingOrder.getAccount().getMember().equals(existingOrder.getAccount().getMember())) {
+				break;
+			}
+
         	final BigDecimal matchedQuantity = incomingOrder.getRemainingQuantity()
 				.min(existingOrder.getRemainingQuantity());
 			final BigDecimal matchPrice = existingOrder.getPrice(); // 체결 가격은 항상 기존 주문 가격
