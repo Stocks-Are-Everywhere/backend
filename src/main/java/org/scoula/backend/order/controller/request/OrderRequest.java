@@ -15,8 +15,7 @@ public record OrderRequest(
 		BigDecimal remainingQuantity,
 		OrderStatus status,
 		BigDecimal price,
-		Long accountId,
-		String userName
+		Long accountId
 ) {
 
 }
