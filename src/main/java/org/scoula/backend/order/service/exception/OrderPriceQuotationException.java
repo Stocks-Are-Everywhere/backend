@@ -5,6 +5,6 @@ import org.springframework.http.HttpStatus;
 
 public class OrderPriceQuotationException extends BaseException {
 	public OrderPriceQuotationException(final String message) {
-		super(message, HttpStatus.INTERNAL_SERVER_ERROR);
+		super(message, HttpStatus.BAD_REQUEST);
 	}
 }

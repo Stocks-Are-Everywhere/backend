@@ -5,7 +5,7 @@ import org.springframework.http.HttpStatus;
 
 public class MatchingException extends BaseException {
 	public MatchingException(String message) {
-		super(message, HttpStatus.INTERNAL_SERVER_ERROR);
+		super(message, HttpStatus.NOT_FOUND);
 	}
 
 	// 예외 던지기 -> tracking 과정을 없애 비용 절감
