@@ -20,7 +20,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
-public class BaseEntity {
+public class BaseEntity{
 
 	@CreatedDate
 	@Column(nullable = false, updatable = false)
@@ -43,6 +43,10 @@ public class BaseEntity {
 			throw new IllegalArgumentException("deletedDateTime must not be `null`");
 		}
 		this.deletedDateTime = deletedDateTime;
+	}
+
+	public void restore() {
+		this.deletedDateTime = LocalDateTime.now();
 	}
 
 }

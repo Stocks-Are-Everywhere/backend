@@ -2,6 +2,8 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.4.2'
     id 'io.spring.dependency-management' version '1.1.7'
+    // jacoco : jaeyu
+    id 'jacoco'
 }
 
 group = 'org.scoula'
@@ -24,6 +26,27 @@ repositories {
 }
 
 dependencies {
+    // jwt: Woo
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+    // OAuth2: Woo
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
+    // Spring Security: Woo
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // Websocket
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+    // Json parsing
+    implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+
+    // Swagger-ui
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'
+
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     compileOnly 'org.projectlombok:lombok'
@@ -31,9 +54,79 @@ dependencies {
     runtimeOnly 'com.mysql:mysql-connector-j'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // test db h2 : Jaeyu
+    testImplementation 'com.h2database:h2'
+
+}
+
+// jacoco 설정 : jaeyu
+jacoco {
+    toolVersion = "0.8.10" // https://www.jacoco.org/jacoco/trunk/doc/changes.html
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        html.required = true
+        xml.required = false
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(
+                // 그 외의 매칭되는 클래스도 제외 대상
+                files(classDirectories.files.collect {
+                    fileTree(dir: it, excludes: [
+                            // 도메인 추가 ? 고민
+                            "**/*Application*",
+                            "**/*Config*",
+                            "**/*Dto*",
+                            "**/*Request*",
+                            "**/*Response*",
+                            "**/*Interceptor*",
+                            "**/*Exception*"
+                    ])
+                })
+        )
+    }
+    // 리포트 생성 후 커버리지 체크
+    finalizedBy jacocoTestCoverageVerification
+}
+
+jacocoTestCoverageVerification {
+
+    violationRules {
+        rule {
+            // rule 활성화
+            enabled = true
+
+            // 클래스 단위로 룰 체크
+            element = 'CLASS'
+
+            // 라인 커버리지를 최소 80% 만족
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+
+            excludes = [
+                    "**.*Application*",
+                    "**.*Config*",
+                    "**.*Dto*",
+                    "**.*Request*",
+                    "**.*Response*",
+                    "**.*Interceptor*",
+                    "**.*Exception*"
+            ]
+        }
+    }
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+    // test 수행 이후 리포트 생성
+    finalizedBy jacocoTestReport
 }
