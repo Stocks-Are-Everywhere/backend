@@ -21,6 +21,8 @@ import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
 import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
+import org.scoula.backend.member.service.reposiotry.AccountRepository;
+import org.scoula.backend.member.service.reposiotry.MemberRepository;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -40,10 +42,10 @@ class GoogleOAuthServiceTest {
     private GoogleOAuthService googleOAuthService;
 
     @Mock
-    private MemberRepositoryImpl memberRepository;
+    private MemberRepository memberRepository;
 
 	@Mock
-	private AccountRepositoryImpl accountRepository;
+	private AccountRepository accountRepository;
 
 	@Mock
     private JwtUtil jwtUtil;

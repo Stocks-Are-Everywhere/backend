@@ -7,6 +7,7 @@ import static org.mockito.Mockito.*;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,8 +26,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
+import org.scoula.backend.order.domain.Order;
+import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.TimeFrame;
 import org.scoula.backend.order.domain.TradeHistory;
+import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.CandleDto;
 import org.scoula.backend.order.dto.ChartResponseDto;
 import org.scoula.backend.order.dto.ChartUpdateDto;
@@ -41,13 +45,16 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 class TradeHistoryServiceTest {
 
 	@Mock
-	private TradeHistoryRepositoryImpl tradeHistoryRepository;
+	private TradeHistoryRepository tradeHistoryRepository;
 
 	@Mock
 	private SimpMessagingTemplate messagingTemplate;
 
 	@InjectMocks
 	private TradeHistoryService tradeHistoryService;
+
+	@Mock
+	private OrderRepository orderRepository;
 
 	@Captor
 	private ArgumentCaptor<String> topicCaptor;
@@ -220,6 +227,7 @@ class TradeHistoryServiceTest {
 					.price(BigDecimal.valueOf(57500))
 					.tradeTime(Instant.now().getEpochSecond()) // 1분 간격
 					.build();
+
 			tradeHistoryService.saveTradeHistory(firstResponse);
 
 			TradeHistoryResponse secondResponse = TradeHistoryResponse.builder()
@@ -291,10 +299,10 @@ class TradeHistoryServiceTest {
 			List<String> companyCodes = List.of(TEST_COMPANY_CODE);
 			List<TradeHistory> mockTrades = createMockTradeHistoriesInReverseOrder(TEST_COMPANY_CODE, 5);
 
-			when(tradeHistoryRepository.findDistinctCompanyCodes()).thenReturn(companyCodes);
 			// MAX_TRADE_HISTORY 값을 직접 참조
 			when(tradeHistoryRepository.findRecentTradesByCompanyCode(eq(TEST_COMPANY_CODE), eq(MAX_TRADE_HISTORY)))
 					.thenReturn(mockTrades);
+			when(tradeHistoryRepository.findDistinctCompanyCodes()).thenReturn(companyCodes);
 
 			// When
 			tradeHistoryService.loadTradeHistoryFromDb();
@@ -395,6 +403,7 @@ class TradeHistoryServiceTest {
 					.quantity(BigDecimal.valueOf(10))
 					.tradeTime(Instant.now().getEpochSecond())
 					.build();
+
 
 			// 거래 내역 저장
 			tradeHistoryService.saveTradeHistory(trade);

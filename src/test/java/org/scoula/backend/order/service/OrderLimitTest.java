@@ -7,18 +7,23 @@ import static org.mockito.Mockito.*;
 import java.math.BigDecimal;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.domain.MemberRoleEnum;
 import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
 import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
 import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
+import org.scoula.backend.member.service.reposiotry.AccountRepository;
+import org.scoula.backend.member.service.reposiotry.CompanyRepository;
+import org.scoula.backend.member.service.reposiotry.MemberRepository;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.Type;
@@ -33,13 +38,13 @@ public class OrderLimitTest {
     OrderService orderService;
 
     @Mock
-    AccountRepositoryImpl accountRepository;
+    AccountRepository accountRepository;
 
     @Mock
-    MemberRepositoryImpl memberRepository;
+    MemberRepository memberRepository;
 
     @Mock
-    CompanyRepositoryImpl companyRepository;
+    CompanyRepository companyRepository;
 
     @Mock
     TradeHistoryService tradeHistoryService;
@@ -47,8 +52,16 @@ public class OrderLimitTest {
     @Mock
     SimpMessagingTemplate simpMessagingTemplate;
 
+    @Mock
+    OrderRepository orderRepository;
+
     Company company = Company.builder().isuCd("심상전자").isuNm("005930").closingPrice(new BigDecimal(1000)).build();
     Member member = Member.builder().id(1L).username("username").googleId("googleId").role(MemberRoleEnum.USER).build();
+
+    @BeforeEach
+    void setUp() {
+        member.createAccount();
+    }
 
     @Test
     @DisplayName("입력된 가격이 종가 기준 상향 30% 이상일 경우 정상적으로 처리한다.")

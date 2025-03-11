@@ -2,17 +2,14 @@ package org.scoula.backend.member.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import org.scoula.backend.global.jwt.JwtUtil;
 import org.scoula.backend.member.controller.response.LoginResponseDto;
-import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.domain.MemberRoleEnum;
-import org.scoula.backend.member.repository.AccountJpaRepository;
-import org.scoula.backend.member.repository.MemberJpaRepository;
 import org.scoula.backend.member.repository.impls.AccountRepositoryImpl;
 import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.scoula.backend.member.service.reposiotry.AccountRepository;
+import org.scoula.backend.member.service.reposiotry.MemberRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -25,8 +22,8 @@ import java.net.URI;
 
 @Service
 public class GoogleOAuthService {
-    private final MemberRepositoryImpl memberRepository;
-    private final AccountRepositoryImpl accountRepository;
+    private final MemberRepository memberRepository;
+    private final AccountRepository accountRepository;
     private final JwtUtil jwtUtil;
     private final RestTemplate restTemplate;
 
@@ -45,7 +42,7 @@ public class GoogleOAuthService {
     @Value("${google.userinfo.uri}")
     private String userInfoUri;
 
-    public GoogleOAuthService(MemberRepositoryImpl memberRepository, AccountRepositoryImpl accountRepository, JwtUtil jwtUtil, RestTemplate restTemplate) {
+    public GoogleOAuthService(MemberRepository memberRepository, AccountRepository accountRepository, JwtUtil jwtUtil, RestTemplate restTemplate) {
         this.memberRepository = memberRepository;
         this.accountRepository = accountRepository;
         this.jwtUtil = jwtUtil;

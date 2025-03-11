@@ -8,11 +8,15 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.scoula.backend.member.domain.Account;
+import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.domain.Holdings;
 import org.scoula.backend.member.exception.HoldingsNotFoundException;
 import org.scoula.backend.member.repository.impls.HoldingsRepositoryImpl;
 import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
 import org.scoula.backend.member.domain.Company;
+import org.scoula.backend.member.service.reposiotry.AccountRepository;
+import org.scoula.backend.member.service.reposiotry.CompanyRepository;
+import org.scoula.backend.member.service.reposiotry.MemberRepository;
 import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
 import org.scoula.backend.member.service.AccountService;
 import org.scoula.backend.member.service.StockHoldingsService;
@@ -24,6 +28,7 @@ import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.OrderDto;
+import org.scoula.backend.order.service.exception.CompanyNotFound;
 import org.scoula.backend.order.repository.OrderRepositoryImpl;
 import org.scoula.backend.order.service.exception.MatchingException;
 import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
@@ -46,13 +51,15 @@ public class OrderService {
 
 	private final TradeHistoryService tradeHistoryService;
 
-	private final CompanyRepositoryImpl companyRepository;
+	private final CompanyRepository companyRepository;
 
-	private final MemberRepositoryImpl memberRepository;
+	private final AccountRepository accountRepository;
+
+	private final MemberRepository memberRepository;
+
+	private final OrderRepository orderRepository;
 
 	private final HoldingsRepositoryImpl holdingsRepository;
-
-	private final OrderRepositoryImpl orderRepository;
 
 	private final StockHoldingsService stockHoldingsService;
 
@@ -77,7 +84,7 @@ public class OrderService {
 	// 종가 기준 가격 검증
 	private void validateClosingPrice(final BigDecimal price, final String companyCode) {
 		final Company company = companyRepository.findByIsuSrtCd(companyCode)
-			.orElseThrow(PriceOutOfRangeException::new);
+				.orElseThrow(CompanyNotFound::new);
 
 		if (!company.isWithinClosingPriceRange(price)) {
 			throw new PriceOutOfRangeException();
