@@ -1,23 +1,19 @@
 package org.scoula.backend.order.service;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.scoula.backend.member.domain.Account;
-import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.domain.Holdings;
 import org.scoula.backend.member.exception.HoldingsNotFoundException;
 import org.scoula.backend.member.repository.impls.HoldingsRepositoryImpl;
-import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
 import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.service.reposiotry.AccountRepository;
 import org.scoula.backend.member.service.reposiotry.CompanyRepository;
 import org.scoula.backend.member.service.reposiotry.MemberRepository;
-import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
 import org.scoula.backend.member.service.AccountService;
 import org.scoula.backend.member.service.StockHoldingsService;
 import org.scoula.backend.order.controller.request.OrderRequest;
@@ -29,9 +25,9 @@ import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.OrderDto;
 import org.scoula.backend.order.service.exception.CompanyNotFound;
-import org.scoula.backend.order.repository.OrderRepositoryImpl;
 import org.scoula.backend.order.service.exception.MatchingException;
 import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
+import org.scoula.backend.order.service.orderbook.OrderBookService;
 import org.scoula.backend.order.service.validator.OrderValidator;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;

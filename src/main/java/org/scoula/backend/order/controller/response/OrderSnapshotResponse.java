@@ -1,14 +1,13 @@
 package org.scoula.backend.order.controller.response;
 
-import java.math.BigDecimal;
-import java.util.Queue;
 import java.util.TreeMap;
 
-import org.scoula.backend.order.domain.Order;
+import org.scoula.backend.order.service.orderbook.OrderStorage;
+import org.scoula.backend.order.service.orderbook.Price;
 
 public record OrderSnapshotResponse(
 		String companyCode,
-		TreeMap<BigDecimal, Queue<Order>> sellOrders,
-		TreeMap<BigDecimal, Queue<Order>> buyOrders
+		TreeMap<Price, OrderStorage> sellOrders,
+		TreeMap<Price, OrderStorage> buyOrders
 ) {
 }

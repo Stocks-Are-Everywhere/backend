@@ -24,6 +24,7 @@ import org.springframework.test.annotation.DirtiesContext;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -98,7 +99,6 @@ public class IntegrationConcurrentTest {
         CountDownLatch latch = new CountDownLatch(THREAD_COUNT * 2);
 
         AtomicInteger buyExceptionCount = processBuyOrders(executorService, latch);
-        Thread.sleep(5000);
         AtomicInteger sellExceptionCount = processSellOrders(executorService, latch);
 
         latch.await();
@@ -109,7 +109,7 @@ public class IntegrationConcurrentTest {
     }
 
     private AtomicInteger processBuyOrders(ExecutorService executorService, CountDownLatch latch) {
-        List<OrderRequest> buyOrders = createOrderRequests(0, THREAD_COUNT, Type.BUY);
+        List<OrderRequest> buyOrders = createOrderRequests(Type.BUY);
         AtomicInteger exceptionCount = new AtomicInteger();
         
         submitOrders(executorService, latch, buyOrders, exceptionCount);
@@ -117,7 +117,7 @@ public class IntegrationConcurrentTest {
     }
 
     private AtomicInteger processSellOrders(ExecutorService executorService, CountDownLatch latch) {
-        List<OrderRequest> sellOrders = createOrderRequests(THREAD_COUNT, THREAD_COUNT * 2, Type.SELL);
+        List<OrderRequest> sellOrders = createOrderRequests(Type.SELL);
         AtomicInteger exceptionCount = new AtomicInteger();
         
         submitOrders(executorService, latch, sellOrders, exceptionCount);
@@ -132,7 +132,8 @@ public class IntegrationConcurrentTest {
                 try {
                     orderService.placeOrder(order, TEST_USERNAME);
                 } catch (Exception e) {
-                    System.out.println("Exception: " + e.getMessage());
+                    System.out.println("[Exception] " + e.fillInStackTrace() + ": " + e.getMessage());
+                    Arrays.stream(e.getSuppressed()).forEach(suppressed -> System.out.println("Suppressed: " + suppressed));
                     exceptionCount.getAndIncrement();
                 } finally {
                     latch.countDown();
@@ -141,10 +142,11 @@ public class IntegrationConcurrentTest {
         }
     }
 
-    private List<OrderRequest> createOrderRequests(int startIndex, int endIndex, Type type) {
+    private List<OrderRequest> createOrderRequests(Type type) {
         List<OrderRequest> orders = new ArrayList<>();
-        for (int i = startIndex; i < endIndex; i++) {
+        for (int i = 0; i < THREAD_COUNT / 2; i++) {
             orders.add(createOrderRequest(type, TEST_ORDER_QUANTITY, TEST_PRICE));
+            orders.add(createOrderRequest(type, TEST_ORDER_QUANTITY, TEST_PRICE.add(new BigDecimal("100"))));
         }
         return orders;
     }
