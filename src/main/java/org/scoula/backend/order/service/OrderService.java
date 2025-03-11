@@ -65,7 +65,7 @@ public class OrderService {
 
 	private final AccountService accountService;
 
-	public synchronized void placeOrder(final OrderRequest request, final String username) throws MatchingException {
+	public void placeOrder(final OrderRequest request, final String username) throws MatchingException {
 		// 지정가 주문 가격 견적 유효성 검증
 		final BigDecimal price = request.price();
 		final OrderValidator validator = OrderValidator.getUnitByPrice(price);

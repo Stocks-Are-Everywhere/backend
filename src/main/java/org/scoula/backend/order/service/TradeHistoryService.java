@@ -419,7 +419,6 @@ public class TradeHistoryService {
 
 		// DB 저장
 		tradeHistoryRepository.save(tradeHistory);
-		log.info("거래 내역 저장: {}", tradeHistory);
 
 		// 메모리 저장 및 캔들 업데이트
 		storeTradeHistory(tradeHistory);

@@ -10,6 +10,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.TreeMap;
 
+import lombok.Synchronized;
 import org.scoula.backend.member.service.AccountService;
 import org.scoula.backend.member.service.StockHoldingsService;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
@@ -57,24 +58,19 @@ public class OrderBookService {
 	/**
 	 * 주문 접수 및 처리
 	 */
-	public void received(final Order order) throws MatchingException {
-		log.info("주문 접수 - 종목: {}, 주문ID: {}, 타입: {}, 가격: {}, 수량: {}",
-				companyCode, order.getId(), order.getType(), order.getPrice(), order.getTotalQuantity());
-
+	@Synchronized
+	public void received(final Order order) {
 		if (order.getStatus() == OrderStatus.MARKET) {
 			processMarketOrder(order);
 		} else {
 			processLimitOrder(order);
 		}
-
-		log.info("주문 처리 완료 - 주문ID: {}, 잔여수량: {}",
-				order.getId(), order.getRemainingQuantity());
 	}
 
 	/**
 	 * 시장가 주문 처리
 	 */
-	private void processMarketOrder(final Order order) throws MatchingException {
+	private void processMarketOrder(final Order order) {
 		if (order.getType() == Type.BUY) {
 			matchMarketBuyOrder(order);
 		} else {
@@ -98,13 +94,11 @@ public class OrderBookService {
 	 */
 	private void matchSellOrder(final Order sellOrder) {
 		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
-			log.info("매도 메서드 진입");
 			// 매도가보다 높거나 같은 매수 주문 찾기
 			Map.Entry<BigDecimal, Queue<Order>> bestBuy = buyOrders.firstEntry();
 
 			if (bestBuy == null || bestBuy.getKey().compareTo(sellOrder.getPrice()) < 0) {
 				// 매칭되는 매수 주문이 없으면 주문장에 추가
-				log.info("매도 초기값 할당 조건문 진입");
 				addToOrderBook(sellOrders, sellOrder);
 				break;
 			}
@@ -123,12 +117,10 @@ public class OrderBookService {
 	 * 시장가 매도 주문 처리
 	 */
 	private void matchMarketSellOrder(final Order sellOrder) throws MatchingException {
-		log.info("시장가 매도 메서드 진입");
 		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매수 주문 찾기
 			Map.Entry<BigDecimal, Queue<Order>> bestBuy = buyOrders.firstEntry();
 			if (bestBuy == null) {
-				log.info("남은 시장가 매수 삭제");
 				throw new MatchingException("주문 체결 불가 : " + sellOrder.getRemainingQuantity());
 			}
 
@@ -140,7 +132,6 @@ public class OrderBookService {
 				buyOrders.remove(bestBuy.getKey());
 			}
 		}
-		log.info("시장가 매도 체결 완료");
 	}
 
 	/**
@@ -148,12 +139,10 @@ public class OrderBookService {
 	 */
 	private void matchBuyOrder(final Order buyOrder) {
 		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
-			log.info("매수 메서드 진입");
 			// 매수가보다 낮거나 같은 매도 주문 찾기
 			Map.Entry<BigDecimal, Queue<Order>> bestSell = sellOrders.firstEntry();
 
 			if (bestSell == null || bestSell.getKey().compareTo(buyOrder.getPrice()) > 0) {
-				log.info("매수 초기값 할당 조건문 진입");
 				addToOrderBook(buyOrders, buyOrder);
 				break;
 			}
@@ -172,13 +161,11 @@ public class OrderBookService {
 	 * 시장가 매수 주문 처리
 	 */
 	private void matchMarketBuyOrder(final Order buyOrder) throws MatchingException {
-		log.info("시장가 매수 메서드 진입");
 		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매도 주문 찾기
 			Map.Entry<BigDecimal, Queue<Order>> bestSell = sellOrders.firstEntry();
 
 			if (bestSell == null) {
-				log.info("남은 시장가 매도 삭제");
 				throw new MatchingException("주문 체결 불가 : " + buyOrder.getRemainingQuantity());
 			}
 
@@ -190,7 +177,6 @@ public class OrderBookService {
 				sellOrders.remove(bestSell.getKey());
 			}
 		}
-		log.info("시장가 매수 체결 완료");
 	}
 
 	/**
@@ -236,8 +222,6 @@ public class OrderBookService {
 	 // 매수/매도 주문 체결 처리
 	private void processTradeMatch(Order buyOrder, Order sellOrder, BigDecimal price, BigDecimal quantity) {
 		String companyCode = buyOrder.getCompanyCode();
-		log.info("매수/매도 주문 체결 처리 - 매수ID: {}, 매도ID: {}, 가격: {}, 수량: {}, 종목: {}",
-				buyOrder.getId(), sellOrder.getId(), price, quantity, companyCode);
 
 		// 1. 거래 내역 저장
 		TradeHistoryResponse tradeHistory = TradeHistoryResponse.builder()
@@ -264,7 +248,6 @@ public class OrderBookService {
 	 */
 	private void addToOrderBook(final TreeMap<BigDecimal, Queue<Order>> orderBook, final Order order) {
 		if (order.getPrice().compareTo(BigDecimal.ZERO) == 0) {
-			log.warn("시장가 주문은 주문장에 추가할 수 없습니다: {}", order);
 			return;
 		}
 
