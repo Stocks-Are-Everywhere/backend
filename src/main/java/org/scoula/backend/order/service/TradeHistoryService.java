@@ -14,10 +14,18 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
+import org.scoula.backend.member.domain.Account;
+import org.scoula.backend.member.domain.Holdings;
+import org.scoula.backend.member.service.AccountService;
+import org.scoula.backend.member.service.StockHoldingsService;
+import org.scoula.backend.member.service.reposiotry.AccountRepository;
+import org.scoula.backend.member.service.reposiotry.HoldingsRepository;
 import org.scoula.backend.order.controller.response.KisStockResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
+import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.TimeFrame;
 import org.scoula.backend.order.domain.TradeHistory;
+import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.CandleDto;
 import org.scoula.backend.order.dto.ChartResponseDto;
 import org.scoula.backend.order.dto.ChartUpdateDto;
@@ -39,6 +47,8 @@ public class TradeHistoryService {
 	private final TradeHistoryRepository tradeHistoryRepository;
 	private final OrderRepository orderRepository;
 	private final SimpMessagingTemplate messagingTemplate;
+	private final AccountRepository accountRepository;
+	private final HoldingsRepository holdingsRepository;
 
 	// 상수 정의
 	private static final int MAX_TRADE_HISTORY = 1000; // 종목당 최대 보관 거래 수
@@ -417,8 +427,26 @@ public class TradeHistoryService {
 	public void saveTradeHistory(final TradeHistoryResponse tradeHistoryResponse) {
 		TradeHistory tradeHistory = convertToEntity(tradeHistoryResponse);
 
-		// DB 저장
+		// 거래 내역 DB 저장
 		tradeHistoryRepository.save(tradeHistory);
+
+		// 1. 주문 내역 조회
+		Order buyOrder = orderRepository.getById(tradeHistory.getBuyOrderId());
+		Order sellOrder = orderRepository.getById(tradeHistory.getSellOrderId());
+
+		buyOrder.decreaseRemainingQuantity(tradeHistory.getQuantity());
+		sellOrder.decreaseRemainingQuantity(tradeHistory.getQuantity());
+
+		orderRepository.save(buyOrder);
+		orderRepository.save(sellOrder);
+
+		// 2. 계좌 잔액 처리
+		updateAccountAfterTrade(buyOrder, tradeHistory.getPrice(), tradeHistory.getQuantity());
+		updateAccountAfterTrade(sellOrder, tradeHistory.getPrice(), tradeHistory.getQuantity());
+
+		// 3. 보유 주식 처리
+		updateHoldingsAfterTrade(buyOrder, tradeHistory.getPrice(), tradeHistory.getQuantity());
+		updateHoldingsAfterTrade(sellOrder, tradeHistory.getPrice(), tradeHistory.getQuantity());
 
 		// 메모리 저장 및 캔들 업데이트
 		storeTradeHistory(tradeHistory);
@@ -426,6 +454,36 @@ public class TradeHistoryService {
 
 		// 실시간 업데이트 전송
 		sendChartUpdates(tradeHistory);
+	}
+
+	private void updateAccountAfterTrade(final Order order, final BigDecimal price, final BigDecimal quantity) {
+		final Account account = order.getAccount();
+		account.processOrder(order.getType(), price, quantity);
+		accountRepository.save(account);
+	}
+
+	private void updateHoldingsAfterTrade(Order order, BigDecimal price, BigDecimal quantity) {
+		Account account = order.getAccount();
+		Holdings holdings =  getOrCreateHoldings(account.getId(), order.getCompanyCode());
+		holdings.updateHoldings(order.getType(), price, quantity);
+		saveHoldings(holdings);
+	}
+
+	private void saveHoldings(final Holdings holdings) {
+		holdingsRepository.save(holdings);
+	}
+
+	private Holdings getOrCreateHoldings(final Long accountId, final String companyCode) {
+		final Account account = accountRepository.getById(accountId);
+		return holdingsRepository.findByAccountIdAndCompanyCode(account.getId(), companyCode)
+				.orElseGet(() -> Holdings.builder()
+						.account(account)
+						.companyCode(companyCode)
+						.quantity(BigDecimal.ZERO)
+						.reservedQuantity(BigDecimal.ZERO)
+						.averagePrice(BigDecimal.ZERO)
+						.totalPurchasePrice(BigDecimal.ZERO)
+						.build());
 	}
 
 	/**

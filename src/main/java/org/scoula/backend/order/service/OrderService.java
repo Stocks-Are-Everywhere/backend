@@ -34,6 +34,7 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -49,17 +50,11 @@ public class OrderService {
 
 	private final CompanyRepository companyRepository;
 
-	private final AccountRepository accountRepository;
-
 	private final MemberRepository memberRepository;
 
 	private final OrderRepository orderRepository;
 
 	private final HoldingsRepositoryImpl holdingsRepository;
-
-	private final StockHoldingsService stockHoldingsService;
-
-	private final AccountService accountService;
 
 	public void placeOrder(final OrderRequest request, final String username) {
 		// 지정가 주문 가격 견적 유효성 검증
@@ -98,6 +93,7 @@ public class OrderService {
 			holdings.validateEnoughHoldings(request.totalQuantity());
 			holdings.processReservedOrder(request.totalQuantity());
 		}
+
 		// 매수 시 주문 가능 잔액 검증 후 예약 매수 금액 설정
 		else {
 			account.validateDepositBalance(request.price().multiply(request.totalQuantity()));

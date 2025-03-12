@@ -9,7 +9,7 @@ public interface OrderRepository {
 
     Order save(final Order order);
 
-    Optional<Order> findById(final Long id);
+    Order getById(final Long id);
 
     List<Order> findByCompanyCode(final String number);
 }

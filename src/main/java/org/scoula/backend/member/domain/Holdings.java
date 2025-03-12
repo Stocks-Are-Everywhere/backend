@@ -86,7 +86,6 @@ public class Holdings extends BaseEntity {
 	}
 
 	public void updateHoldings(final Type type, final BigDecimal updatePrice, final BigDecimal updateQuantity) {
-		validateExistHoldings();
 		if (Type.BUY.equals(type)) {
 			updateBuyHoldings(updatePrice, updateQuantity);
 		} else {

@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Nested;
@@ -25,6 +26,10 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.scoula.backend.member.domain.Account;
+import org.scoula.backend.member.domain.Member;
+import org.scoula.backend.member.service.reposiotry.AccountRepository;
+import org.scoula.backend.member.service.reposiotry.HoldingsRepository;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.OrderStatus;
@@ -50,6 +55,12 @@ class TradeHistoryServiceTest {
 	@Mock
 	private SimpMessagingTemplate messagingTemplate;
 
+	@Mock
+	AccountRepository accountRepository;
+
+	@Mock
+	HoldingsRepository holdingsRepository;
+
 	@InjectMocks
 	private TradeHistoryService tradeHistoryService;
 
@@ -71,6 +82,18 @@ class TradeHistoryServiceTest {
 	private static final int MAX_TRADE_HISTORY = 1000; // 종목당 최대 보관 거래 수
 	private static final int CANDLE_KEEP_NUMBER = 100; // 캔들 데이터 보관 개수
 
+	private Member member;
+	private Account account;
+	private Order order;
+
+	@BeforeEach
+	void setUp() {
+		member = Member.builder().id(1L).email("test").username("test").build();
+		member.createAccount();
+		account = member.getAccount();
+		order = Order.builder().id(1L).remainingQuantity(new BigDecimal(10)).account(account).type(Type.BUY).build();
+	}
+
 	@Nested
 	@TestMethodOrder(MethodOrderer.DisplayName.class)
 	@DisplayName("7. 캔들 데이터 성성 및 관리 테스트")
@@ -81,6 +104,8 @@ class TradeHistoryServiceTest {
 		void saveTradeHistory_ShouldStoreTradeAndUpdateCandles() {
 			// Given
 			TradeHistoryResponse tradeResponse = createMockTradeHistoryResponse(TEST_COMPANY_CODE);
+			when(orderRepository.getById(any())).thenReturn(order);
+			when(accountRepository.getById(any())).thenReturn(account);
 
 			// When
 			tradeHistoryService.saveTradeHistory(tradeResponse);
@@ -111,6 +136,8 @@ class TradeHistoryServiceTest {
 		void shouldReflectTradeInMultipleTimeFrames() {
 			// Given: 테스트 거래 생성
 			TradeHistoryResponse trade = createMockTradeHistoryResponse(TEST_COMPANY_CODE);
+			when(orderRepository.getById(any())).thenReturn(order);
+			when(accountRepository.getById(any())).thenReturn(account);
 
 			// When: 거래 저장 및 캔들 업데이트
 			tradeHistoryService.saveTradeHistory(trade);
@@ -141,6 +168,8 @@ class TradeHistoryServiceTest {
 			// Given: 장시간의 거래 데이터 생성 (1시간 분량)
 			long baseTime = Instant.now().truncatedTo(ChronoUnit.HOURS).getEpochSecond();
 			List<TradeHistoryResponse> trades = new ArrayList<>();
+			when(orderRepository.getById(any())).thenReturn(order);
+			when(accountRepository.getById(any())).thenReturn(account);
 
 			// 1시간 동안 5분마다 거래 생성 (총 12개 거래)
 			for (int i = 0; i < 12; i++) {
@@ -227,6 +256,8 @@ class TradeHistoryServiceTest {
 					.price(BigDecimal.valueOf(57500))
 					.tradeTime(Instant.now().getEpochSecond()) // 1분 간격
 					.build();
+			when(orderRepository.getById(any())).thenReturn(order);
+			when(accountRepository.getById(any())).thenReturn(account);
 
 			tradeHistoryService.saveTradeHistory(firstResponse);
 
@@ -256,6 +287,8 @@ class TradeHistoryServiceTest {
 			// Given: 기준 시간 설정
 			long currentTime = Instant.now().getEpochSecond();
 			long twoHoursAgo = currentTime - 7200; // 2시간 전
+			when(orderRepository.getById(any())).thenReturn(order);
+			when(accountRepository.getById(any())).thenReturn(account);
 
 			// 2시간 전 거래와 현재 거래 생성 (중간에 거래 없음)
 			TradeHistoryResponse oldTrade = TradeHistoryResponse.builder()
@@ -331,6 +364,8 @@ class TradeHistoryServiceTest {
 		void shouldLimitCandleDataToMaximumKeepNumber() {
 			// Given
 			// 캔들 데이터 보관 개수보다 많은 거래 내역 생성 (시간 간격을 두고)
+			when(orderRepository.getById(any())).thenReturn(order);
+			when(accountRepository.getById(any())).thenReturn(account);
 			final int TRADES_TO_GENERATE = CANDLE_KEEP_NUMBER + 50; // 보관 개수보다 많은 거래 생성
 
 			long baseTime = Instant.now().truncatedTo(ChronoUnit.HOURS).getEpochSecond();
@@ -403,7 +438,8 @@ class TradeHistoryServiceTest {
 					.quantity(BigDecimal.valueOf(10))
 					.tradeTime(Instant.now().getEpochSecond())
 					.build();
-
+			when(orderRepository.getById(any())).thenReturn(order);
+			when(accountRepository.getById(any())).thenReturn(account);
 
 			// 거래 내역 저장
 			tradeHistoryService.saveTradeHistory(trade);
@@ -450,6 +486,8 @@ class TradeHistoryServiceTest {
 		void getChartHistory_shouldReturnCandlesSortedByTime() {
 			// Given: 현재 시간 및 시간 간격 계산
 			long currentTime = Instant.now().getEpochSecond();
+			when(orderRepository.getById(any())).thenReturn(order);
+			when(accountRepository.getById(any())).thenReturn(account);
 
 			// 시간 순서가 섞인 거래 데이터 생성
 			TradeHistoryResponse trade1 = TradeHistoryResponse.builder()
@@ -532,6 +570,8 @@ class TradeHistoryServiceTest {
 			// Given
 			// 유효한 거래 생성 및 저장
 			TradeHistoryResponse validTrade = createMockTradeHistoryResponse(TEST_COMPANY_CODE);
+			when(orderRepository.getById(any())).thenReturn(order);
+			when(accountRepository.getById(any())).thenReturn(account);
 			tradeHistoryService.saveTradeHistory(validTrade);
 
 			// 맵에 접근하여 유효하지 않은 캔들 추가
@@ -625,6 +665,8 @@ class TradeHistoryServiceTest {
 					.quantity(BigDecimal.valueOf(7))
 					.tradeTime(currentCandleStartTime)
 					.build();
+			when(orderRepository.getById(any())).thenReturn(order);
+			when(accountRepository.getById(any())).thenReturn(account);
 
 			// When
 			// 거래 저장 - 세 거래 모두 동일한 캔들에 반영되어야 함
