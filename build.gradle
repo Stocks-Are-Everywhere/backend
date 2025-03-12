@@ -60,6 +60,11 @@ dependencies {
     // test db h2 : Jaeyu
     testImplementation 'com.h2database:h2'
 
+    // test lombok
+    testAnnotationProcessor 'org.projectlombok:lombok' // 테스트를 위한 세팅
+    testImplementation 'org.projectlombok:lombok' // 테스트를 위한 세팅
+
+
 }
 
 // jacoco 설정 : jaeyu

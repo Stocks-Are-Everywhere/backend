@@ -1,25 +1,21 @@
 package org.scoula.backend.order.service;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.scoula.backend.member.domain.Account;
-import org.scoula.backend.member.domain.Member;
+import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.domain.Holdings;
 import org.scoula.backend.member.exception.HoldingsNotFoundException;
 import org.scoula.backend.member.repository.impls.HoldingsRepositoryImpl;
-import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
-import org.scoula.backend.member.domain.Company;
+import org.scoula.backend.member.service.AccountService;
+import org.scoula.backend.member.service.StockHoldingsService;
 import org.scoula.backend.member.service.reposiotry.AccountRepository;
 import org.scoula.backend.member.service.reposiotry.CompanyRepository;
 import org.scoula.backend.member.service.reposiotry.MemberRepository;
-import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
-import org.scoula.backend.member.service.AccountService;
-import org.scoula.backend.member.service.StockHoldingsService;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
@@ -29,7 +25,6 @@ import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.OrderDto;
 import org.scoula.backend.order.service.exception.CompanyNotFound;
-import org.scoula.backend.order.repository.OrderRepositoryImpl;
 import org.scoula.backend.order.service.exception.MatchingException;
 import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
 import org.scoula.backend.order.service.validator.OrderValidator;
@@ -84,7 +79,7 @@ public class OrderService {
 	// 종가 기준 가격 검증
 	private void validateClosingPrice(final BigDecimal price, final String companyCode) {
 		final Company company = companyRepository.findByIsuSrtCd(companyCode)
-				.orElseThrow(CompanyNotFound::new);
+			.orElseThrow(CompanyNotFound::new);
 
 		if (!company.isWithinClosingPriceRange(price)) {
 			throw new PriceOutOfRangeException();
@@ -96,8 +91,9 @@ public class OrderService {
 
 		// 매도 시 보유 주식 확인 및 보유 주식 수량 검증 후 예약 매도 수량 설정
 		if (request.type() == Type.SELL) {
-			final Holdings holdings = holdingsRepository.findByAccountIdAndCompanyCode(account.getId(), request.companyCode())
-					.orElseThrow(() -> new HoldingsNotFoundException("보유 주식이 없습니다."));
+			final Holdings holdings = holdingsRepository.findByAccountIdAndCompanyCode(account.getId(),
+					request.companyCode())
+				.orElseThrow(() -> new HoldingsNotFoundException("보유 주식이 없습니다."));
 			holdings.validateExistHoldings();
 			holdings.validateEnoughHoldings(request.totalQuantity());
 			holdings.processReservedOrder(request.totalQuantity());
@@ -166,6 +162,5 @@ public class OrderService {
 
 		return summaries;
 	}
-
 
 }

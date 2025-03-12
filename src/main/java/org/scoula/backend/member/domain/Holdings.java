@@ -32,12 +32,12 @@ import lombok.extern.slf4j.Slf4j;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Slf4j
 @Table(name = "holdings",
-       uniqueConstraints = {
-           @UniqueConstraint(
-               name = "uk_account_company",
-               columnNames = {"account_id", "company_code"}
-           )
-       })
+	uniqueConstraints = {
+		@UniqueConstraint(
+			name = "uk_account_company",
+			columnNames = {"account_id", "company_code"}
+		)
+	})
 public class Holdings extends BaseEntity {
 
 	@Id
@@ -64,22 +64,22 @@ public class Holdings extends BaseEntity {
 	@JoinColumn(name = "account_id", nullable = false, updatable = false)
 	private Account account;
 
-
 	public void validateEnoughHoldings(final BigDecimal checkQuantity) {
-		validateExistHoldings();
+		// validateExistHoldings();
 		if (getAvailableQuantity().compareTo(checkQuantity) < 0) {
 			throw new InsufficientHoldingsException("판매 가능한 보유 주식 수량이 부족합니다.");
 		}
 	}
 
 	public void validateExistHoldings() {
-		if (this.isDeleted()){
+		if (this.isDeleted()) {
 			throw new HoldingsNotFoundException("보유 주식이 없습니다.");
 		}
 		if (this.quantity.compareTo(BigDecimal.ZERO) == 0) {
 			throw new HoldingsNotFoundException("판매 가능한 보유 주식이 없습니다.");
 		}
 	}
+
 	// 예약 주문 처리
 	public void processReservedOrder(final BigDecimal reservedQuantity) {
 		this.reservedQuantity = this.reservedQuantity.add(reservedQuantity);
@@ -99,7 +99,7 @@ public class Holdings extends BaseEntity {
 	}
 
 	private void updateBuyHoldings(final BigDecimal updatePrice, final BigDecimal updateQuantity) {
-		if (this.isDeleted()){
+		if (this.isDeleted()) {
 			restore();
 		}
 		this.quantity = this.quantity.add(updateQuantity);

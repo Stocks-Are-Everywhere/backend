@@ -3,6 +3,7 @@ package org.scoula.backend.order.domain;
 import static jakarta.persistence.FetchType.*;
 
 import java.math.BigDecimal;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.scoula.backend.global.entity.BaseEntity;
 import org.scoula.backend.member.domain.Account;
@@ -16,7 +17,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PostLoad;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -46,6 +49,7 @@ public class Order extends BaseEntity {
 	@Column(nullable = false, precision = 10, scale = 0)
 	private BigDecimal totalQuantity;
 
+	@Getter(AccessLevel.NONE)
 	@Column(nullable = false, precision = 10, scale = 0)
 	private BigDecimal remainingQuantity;
 
@@ -63,12 +67,48 @@ public class Order extends BaseEntity {
 	@Column(nullable = false)
 	private Long timestamp;
 
-	// BigDecimal는 불변 객체 입니다.
+	@Transient // DB에 저장되지 않도록 함
+	private AtomicReference<BigDecimal> atomicRemainingQuantity;
+
+	@PostLoad
+	public void initializeAtomicReference() {
+		if (atomicRemainingQuantity == null) {
+			atomicRemainingQuantity = new AtomicReference<>(remainingQuantity);
+		}
+	}
+
+	// CAS를 사용한 수량 감소 메서드
 	public void decreaseRemainingQuantity(final BigDecimal quantity) {
-		this.remainingQuantity = this.remainingQuantity.subtract(quantity);
+		// AtomicReference가 초기화되지 않았으면 초기화
+		if (atomicRemainingQuantity == null) {
+			initializeAtomicReference();
+		}
+
+		BigDecimal current, updated;
+		do {
+			current = atomicRemainingQuantity.get();
+			updated = current.subtract(quantity);
+			if (updated.compareTo(BigDecimal.ZERO) < 0) {
+				updated = BigDecimal.ZERO;
+			}
+		} while (!atomicRemainingQuantity.compareAndSet(current, updated));
+
+		// DB 저장용 필드도 업데이트
+		this.remainingQuantity = updated;
+
 		if (this.remainingQuantity.compareTo(BigDecimal.ZERO) == 0) {
 			this.status = OrderStatus.COMPLETE;
 		}
+	}
+
+	// getRemainingQuantity 메서드 오버라이드
+
+	public BigDecimal getRemainingQuantity() {
+		// AtomicReference가 초기화되지 않았으면 일반 필드 반환
+		if (atomicRemainingQuantity == null) {
+			return remainingQuantity;
+		}
+		return atomicRemainingQuantity.get();
 	}
 
 	public boolean isSellType() {

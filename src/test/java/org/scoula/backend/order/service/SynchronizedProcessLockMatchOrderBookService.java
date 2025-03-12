@@ -2,20 +2,18 @@ package org.scoula.backend.order.service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.scoula.backend.member.service.AccountService;
 import org.scoula.backend.member.service.StockHoldingsService;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
-import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
-import org.scoula.backend.order.controller.response.OrderSummaryResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.OrderStatus;
@@ -23,34 +21,26 @@ import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.PriceLevelDto;
 import org.scoula.backend.order.service.exception.MatchingException;
 
-import lombok.extern.slf4j.Slf4j;
-
 /**
- * 개별 종목의 주문장 - 시나리오 24: ConcurrentMap + Process ReentrantLock + MatchOrder ReentrantLock + ConcurrentLinkedQueue (AtomicReference On)
+ * 개별 종목의 주문장 - 시나리오 3: ConcurrentMap + Process Synchronized + MatchOrder ReentrantLock + PriorityQueue (AtomicReference On/Off)
  */
-@Slf4j
-public class OrderBookService {
+public class SynchronizedProcessLockMatchOrderBookService {
 	private final String companyCode;
 	// 매도 주문: 낮은 가격 우선 (ConcurrentSkipListMap 사용)
-	private final ConcurrentSkipListMap<BigDecimal, ConcurrentLinkedQueue<Order>> sellOrders = new ConcurrentSkipListMap<>();
+	private final ConcurrentSkipListMap<BigDecimal, Queue<Order>> sellOrders = new ConcurrentSkipListMap<>();
 	// 매수 주문: 높은 가격 우선 (ConcurrentSkipListMap 사용)
-	private final ConcurrentSkipListMap<BigDecimal, ConcurrentLinkedQueue<Order>> buyOrders = new ConcurrentSkipListMap<>(
+	private final ConcurrentSkipListMap<BigDecimal, Queue<Order>> buyOrders = new ConcurrentSkipListMap<>(
 		Collections.reverseOrder());
 
-	// processMarketOrder, processLimitOrder에 사용할 ReentrantLock
-	private final ReentrantLock processLock = new ReentrantLock();
-
-	// matchOrders에 사용할 ReentrantLock
+	// matchOrders 메서드에 사용할 ReentrantLock
 	private final ReentrantLock matchLock = new ReentrantLock();
 
 	private final TradeHistoryService tradeHistoryService;
 	private final StockHoldingsService stockHoldingsService;
 	private final AccountService accountService;
 
-	/**
-	 * 생성자
-	 */
-	public OrderBookService(final String companyCode, TradeHistoryService tradeHistoryService,
+	public SynchronizedProcessLockMatchOrderBookService(final String companyCode,
+		TradeHistoryService tradeHistoryService,
 		StockHoldingsService stockHoldingsService, AccountService accountService) {
 		this.companyCode = companyCode;
 		this.tradeHistoryService = tradeHistoryService;
@@ -58,12 +48,10 @@ public class OrderBookService {
 		this.accountService = accountService;
 	}
 
-	/**
-	 * 주문 접수 및 처리
-	 */
 	public void received(final Order order) throws MatchingException {
-		log.info("주문 접수 - 종목: {}, 주문ID: {}, 타입: {}, 가격: {}, 수량: {}",
-			companyCode, order.getId(), order.getType(), order.getPrice(), order.getTotalQuantity());
+		System.out.println("주문 접수 - 종목: " + companyCode + ", 주문ID: " + order.getId() +
+			", 타입: " + order.getType() + ", 가격: " + order.getPrice() +
+			", 수량: " + order.getTotalQuantity());
 
 		if (order.getStatus() == OrderStatus.MARKET) {
 			processMarketOrder(order);
@@ -71,39 +59,29 @@ public class OrderBookService {
 			processLimitOrder(order);
 		}
 
-		log.info("주문 처리 완료 - 주문ID: {}, 잔여수량: {}",
-			order.getId(), order.getRemainingQuantity());
+		System.out.println("주문 처리 완료 - 주문ID: " + order.getId() +
+			", 잔여수량: " + order.getRemainingQuantity());
 	}
 
 	/**
-	 * 시장가 주문 처리 (ReentrantLock 적용)
+	 * 시장가 주문 처리 (synchronized 적용)
 	 */
-	private void processMarketOrder(final Order order) throws MatchingException {
-		processLock.lock();
-		try {
-			if (order.getType() == Type.BUY) {
-				matchMarketBuyOrder(order);
-			} else {
-				matchMarketSellOrder(order);
-			}
-		} finally {
-			processLock.unlock();
+	private synchronized void processMarketOrder(final Order order) throws MatchingException {
+		if (order.getType() == Type.BUY) {
+			matchMarketBuyOrder(order);
+		} else {
+			matchMarketSellOrder(order);
 		}
 	}
 
 	/**
-	 * 지정가 주문 처리 (ReentrantLock 적용)
+	 * 지정가 주문 처리 (synchronized 적용)
 	 */
-	private void processLimitOrder(final Order order) {
-		processLock.lock();
-		try {
-			if (order.getType() == Type.BUY) {
-				matchBuyOrder(order);
-			} else {
-				matchSellOrder(order);
-			}
-		} finally {
-			processLock.unlock();
+	private synchronized void processLimitOrder(final Order order) {
+		if (order.getType() == Type.BUY) {
+			matchBuyOrder(order);
+		} else {
+			matchSellOrder(order);
 		}
 	}
 
@@ -112,13 +90,11 @@ public class OrderBookService {
 	 */
 	private void matchSellOrder(final Order sellOrder) {
 		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
-			log.info("매도 메서드 진입");
 			// 매도가보다 높거나 같은 매수 주문 찾기
-			Map.Entry<BigDecimal, ConcurrentLinkedQueue<Order>> bestBuy = buyOrders.firstEntry();
+			Map.Entry<BigDecimal, Queue<Order>> bestBuy = buyOrders.firstEntry();
 
 			if (bestBuy == null || bestBuy.getKey().compareTo(sellOrder.getPrice()) < 0) {
 				// 매칭되는 매수 주문이 없으면 주문장에 추가
-				log.info("매도 초기값 할당 조건문 진입");
 				addToOrderBook(sellOrders, sellOrder);
 				break;
 			}
@@ -137,12 +113,10 @@ public class OrderBookService {
 	 * 시장가 매도 주문 처리
 	 */
 	private void matchMarketSellOrder(final Order sellOrder) throws MatchingException {
-		log.info("시장가 매도 메서드 진입");
 		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매수 주문 찾기
-			Map.Entry<BigDecimal, ConcurrentLinkedQueue<Order>> bestBuy = buyOrders.firstEntry();
+			Map.Entry<BigDecimal, Queue<Order>> bestBuy = buyOrders.firstEntry();
 			if (bestBuy == null) {
-				log.info("남은 시장가 매수 삭제");
 				throw new MatchingException("주문 체결 불가 : " + sellOrder.getRemainingQuantity());
 			}
 
@@ -154,7 +128,6 @@ public class OrderBookService {
 				buyOrders.remove(bestBuy.getKey());
 			}
 		}
-		log.info("시장가 매도 체결 완료");
 	}
 
 	/**
@@ -162,12 +135,10 @@ public class OrderBookService {
 	 */
 	private void matchBuyOrder(final Order buyOrder) {
 		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
-			log.info("매수 메서드 진입");
 			// 매수가보다 낮거나 같은 매도 주문 찾기
-			Map.Entry<BigDecimal, ConcurrentLinkedQueue<Order>> bestSell = sellOrders.firstEntry();
+			Map.Entry<BigDecimal, Queue<Order>> bestSell = sellOrders.firstEntry();
 
 			if (bestSell == null || bestSell.getKey().compareTo(buyOrder.getPrice()) > 0) {
-				log.info("매수 초기값 할당 조건문 진입");
 				addToOrderBook(buyOrders, buyOrder);
 				break;
 			}
@@ -186,13 +157,11 @@ public class OrderBookService {
 	 * 시장가 매수 주문 처리
 	 */
 	private void matchMarketBuyOrder(final Order buyOrder) throws MatchingException {
-		log.info("시장가 매수 메서드 진입");
 		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매도 주문 찾기
-			Map.Entry<BigDecimal, ConcurrentLinkedQueue<Order>> bestSell = sellOrders.firstEntry();
+			Map.Entry<BigDecimal, Queue<Order>> bestSell = sellOrders.firstEntry();
 
 			if (bestSell == null) {
-				log.info("남은 시장가 매도 삭제");
 				throw new MatchingException("주문 체결 불가 : " + buyOrder.getRemainingQuantity());
 			}
 
@@ -204,36 +173,21 @@ public class OrderBookService {
 				sellOrders.remove(bestSell.getKey());
 			}
 		}
-		log.info("시장가 매수 체결 완료");
 	}
 
 	/**
 	 * 주문 매칭 처리 (ReentrantLock 적용)
-	 * ConcurrentLinkedQueue는 정렬 기능이 없으므로 시간 순서대로 정렬하는 로직 추가
 	 */
-	private void matchOrders(final ConcurrentLinkedQueue<Order> existingOrders, final Order incomingOrder) {
+	private void matchOrders(final Queue<Order> existingOrders, final Order incomingOrder) {
 		matchLock.lock();
 		try {
-			// ConcurrentLinkedQueue에서 모든 주문을 가져와 시간 순서로 정렬
-			List<Order> sortedOrders = new ArrayList<>(existingOrders);
-			sortedOrders.sort(Comparator.comparing(Order::getTimestamp)
-				.thenComparing(Order::getTotalQuantity, Comparator.reverseOrder()));
+			while (!existingOrders.isEmpty() && incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
+				final Order existingOrder = existingOrders.peek();
 
-			// 정렬된 주문 목록을 기반으로 매칭 처리
-			for (Order existingOrder : sortedOrders) {
-				if (incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) <= 0) {
-					break; // 들어온 주문이 모두 체결되었으면 종료
-				}
-
-				// 이미 완전 체결된 주문은 건너뛰기
-				if (existingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) <= 0) {
-					continue;
-				}
-
-				// 동일 유저 주문 체결 방지
+				// 동일 유저 주문 체결 방지 (테스트에서는 사용하지 않을 예정)
 				if (incomingOrder.getAccount() != null && existingOrder.getAccount() != null &&
 					incomingOrder.getAccount().getMember().equals(existingOrder.getAccount().getMember())) {
-					continue; // 다음 주문으로 넘어감
+					break;
 				}
 
 				final BigDecimal matchedQuantity = incomingOrder.getRemainingQuantity()
@@ -259,7 +213,7 @@ public class OrderBookService {
 
 				// 4. 완전 체결된 주문 제거
 				if (existingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
-					existingOrders.remove(existingOrder);
+					existingOrders.poll();
 				}
 			}
 		} finally {
@@ -270,8 +224,6 @@ public class OrderBookService {
 	// 매수/매도 주문 체결 처리
 	private void processTradeMatch(Order buyOrder, Order sellOrder, BigDecimal price, BigDecimal quantity) {
 		String companyCode = buyOrder.getCompanyCode();
-		log.info("매수/매도 주문 체결 처리 - 매수ID: {}, 매도ID: {}, 가격: {}, 수량: {}, 종목: {}",
-			buyOrder.getId(), sellOrder.getId(), price, quantity, companyCode);
 
 		// 1. 거래 내역 저장
 		TradeHistoryResponse tradeHistory = TradeHistoryResponse.builder()
@@ -294,28 +246,21 @@ public class OrderBookService {
 	}
 
 	/**
-	 * 주문장에 주문 추가 - ConcurrentLinkedQueue 사용
-	 * ConcurrentLinkedQueue는 정렬 기능이 없으므로 삽입 시점에 시간 순서대로 들어가도록 함
+	 * 주문장에 주문 추가
 	 */
-	private void addToOrderBook(final ConcurrentSkipListMap<BigDecimal, ConcurrentLinkedQueue<Order>> orderBook,
-		final Order order) {
+	private void addToOrderBook(final ConcurrentSkipListMap<BigDecimal, Queue<Order>> orderBook, final Order order) {
 		if (order.getPrice().compareTo(BigDecimal.ZERO) == 0) {
-			log.warn("시장가 주문은 주문장에 추가할 수 없습니다: {}", order);
+			System.out.println("시장가 주문은 주문장에 추가할 수 없습니다: " + order);
 			return;
 		}
 
-		// 해당 가격에 대한 큐가 없으면 새로 생성
 		orderBook.computeIfAbsent(
 			order.getPrice(),
-			k -> new ConcurrentLinkedQueue<>()
-		).add(order);
-	}
-
-	/**
-	 * 종목별 주문장 스냅샷 생성
-	 */
-	public OrderSnapshotResponse getSnapshot() {
-		return new OrderSnapshotResponse(companyCode, sellOrders, buyOrders);
+			k -> new PriorityQueue<>(
+				Comparator.comparing(Order::getTimestamp)
+					.thenComparing(Order::getTotalQuantity, Comparator.reverseOrder())
+			)
+		).offer(order);
 	}
 
 	/**
@@ -324,11 +269,7 @@ public class OrderBookService {
 	public OrderBookResponse getBook() {
 		final List<PriceLevelDto> sellLevels = createAskLevels();
 		final List<PriceLevelDto> buyLevels = createBidLevels();
-		return OrderBookResponse.builder()
-			.companyCode(companyCode)
-			.sellLevels(sellLevels)
-			.buyLevels(buyLevels)
-			.build();
+		return new OrderBookResponse(companyCode, sellLevels, buyLevels);
 	}
 
 	/**
@@ -356,29 +297,9 @@ public class OrderBookService {
 	/**
 	 * 총 주문 수량 계산
 	 */
-	private BigDecimal calculateTotalQuantity(ConcurrentLinkedQueue<Order> orders) {
+	private BigDecimal calculateTotalQuantity(Queue<Order> orders) {
 		return orders.stream()
 			.map(Order::getRemainingQuantity)
 			.reduce(BigDecimal.ZERO, BigDecimal::add);
-	}
-
-	/**
-	 * 종목별 요약 정보 조회
-	 */
-	public OrderSummaryResponse getSummary() {
-		return new OrderSummaryResponse(
-			companyCode,
-			getOrderVolumeStats(sellOrders),
-			getOrderVolumeStats(buyOrders)
-		);
-	}
-
-	/**
-	 * 주문 수량 통계 계산
-	 */
-	public Integer getOrderVolumeStats(final ConcurrentSkipListMap<BigDecimal, ConcurrentLinkedQueue<Order>> orderMap) {
-		return orderMap.values().stream()
-			.mapToInt(ConcurrentLinkedQueue::size)
-			.sum();
 	}
 }
