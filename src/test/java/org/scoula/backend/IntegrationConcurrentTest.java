@@ -99,14 +99,14 @@ public class IntegrationConcurrentTest {
         CountDownLatch latch = new CountDownLatch(THREAD_COUNT * 2);
 
         long startBuy = System.currentTimeMillis();
-        AtomicInteger buyExceptionCount = processBuyOrders(executorService, latch);
+        AtomicInteger sellExceptionCount = processSellOrders(executorService, latch);
         long endBuy = System.currentTimeMillis();
 
         Thread.sleep(5000);
-
+        System.out.println("sell start");
         long startSell = System.currentTimeMillis();
-        AtomicInteger sellExceptionCount = processSellOrders(executorService, latch);
 
+        AtomicInteger buyExceptionCount = processBuyOrders(executorService, latch);
 
         latch.await();
         executorService.shutdown();

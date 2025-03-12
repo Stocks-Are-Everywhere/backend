@@ -80,8 +80,7 @@ class OrderBookServiceTest {
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService,
-				accountService);
+		orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
 
 		member1.createAccount();
 		account1 = member1.getAccount();
@@ -564,8 +563,7 @@ class OrderBookServiceTest {
 		@DisplayName("TC8.1.4 시장가 주문 체결 불가 테스트")
 		void testMarketOrderNoMatch() {
 			// Given
-			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
-					stockHoldingsService, accountService);
+			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
 
 			// 시장가 매수 주문 (매도 호가가 없음)
 			Order marketBuyOrder = createOrder(Type.BUY, BigDecimal.ZERO, new BigDecimal("5"), OrderStatus.MARKET, account1);

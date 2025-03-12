@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentNavigableMap;
@@ -33,25 +34,18 @@ public class OrderBookService {
 
 	private final String companyCode;
 	// 매도 주문: 낮은 가격 우선
-	private final TreeMap<Price, OrderStorage> sellOrders = new TreeMap<>();
+	private final ConcurrentNavigableMap<Price, OrderStorage> sellOrders = new ConcurrentSkipListMap<>();
 	// 매수 주문: 높은 가격 우선
-	private final TreeMap<Price, OrderStorage> buyOrders = new TreeMap<>(Collections.reverseOrder());
+	private final ConcurrentNavigableMap<Price, OrderStorage> buyOrders = new ConcurrentSkipListMap<>(Collections.reverseOrder());
 
 	private final TradeHistoryService tradeHistoryService;
-
-	private final StockHoldingsService stockHoldingsService;
-
-	private final AccountService accountService;
 
 	/**
 	 * 생성자
 	 */
-	public OrderBookService(final String companyCode, TradeHistoryService tradeHistoryService,
-		StockHoldingsService stockHoldingsService, AccountService accountService) {
+	public OrderBookService(final String companyCode, TradeHistoryService tradeHistoryService) {
 		this.companyCode = companyCode;
 		this.tradeHistoryService = tradeHistoryService;
-		this.stockHoldingsService = stockHoldingsService;
-		this.accountService = accountService;
 	}
 
 	/**
@@ -77,6 +71,53 @@ public class OrderBookService {
 	}
 
 	/**
+	 * 시장가 매도 주문 처리 - TreeMap 읽기, 제거 발생
+	 */
+	private void matchMarketSellOrder(final Order sellOrder) {
+		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
+			// 매수 주문 찾기
+			Map.Entry<Price, OrderStorage> bestBuy = buyOrders.firstEntry();
+			if (bestBuy == null) {
+				throw new MatchingException("주문 체결 불가 : " + sellOrder.getRemainingQuantity());
+			}
+
+			// 주문 매칭 처리
+			matchOrders(bestBuy.getValue(), sellOrder);
+
+			// 매수 큐가 비었으면 제거
+			if (bestBuy.getValue().isEmpty()) {
+				synchronized (bestBuy.getKey()) {
+					buyOrders.remove(bestBuy.getKey());
+				}
+			}
+		}
+	}
+
+	/**
+	 * 시장가 매수 주문 처리 - 읽기, 제거 발생
+	 */
+	private void matchMarketBuyOrder(final Order buyOrder) {
+		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
+			// 매도 주문 찾기
+			Map.Entry<Price, OrderStorage> bestSell = sellOrders.firstEntry();
+
+			if (bestSell == null) {
+				throw new MatchingException("주문 체결 불가 : " + buyOrder.getRemainingQuantity());
+			}
+
+			// 주문 매칭 처리
+			matchOrders(bestSell.getValue(), buyOrder);
+
+			// 매도 큐가 비었으면 제거
+			if (bestSell.getValue().isEmpty()) {
+				synchronized (bestSell.getKey()) {
+					sellOrders.remove(bestSell.getKey());
+				}
+			}
+		}
+	}
+
+	/**
 	 * 지정가 주문 처리
 	 */
 	private void processLimitOrder(final Order order) {
@@ -97,29 +138,10 @@ public class OrderBookService {
 
 			if (bestBuy == null || bestBuy.getKey().isHigherThan(sellOrder.getPrice())) {
 				// 매칭되는 매수 주문이 없으면 주문장에 추가
-				addToOrderBook(sellOrders, sellOrder);
+				if (sellOrder.getPrice().compareTo(BigDecimal.ZERO) != 0) {
+					addToOrderBook(sellOrders, sellOrder);
+				}
 				break;
-			}
-
-			// 주문 매칭 처리
-			matchOrders(bestBuy.getValue(), sellOrder);
-
-			// 매수 큐가 비었으면 제거
-			if (bestBuy.getValue().isEmpty()) {
-				buyOrders.remove(bestBuy.getKey());
-			}
-		}
-	}
-
-	/**
-	 * 시장가 매도 주문 처리 - TreeMap 읽기, 제거 발생
-	 */
-	private void matchMarketSellOrder(final Order sellOrder) throws MatchingException {
-		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
-			// 매수 주문 찾기
-			Map.Entry<Price, OrderStorage> bestBuy = buyOrders.firstEntry();
-			if (bestBuy == null) {
-				throw new MatchingException("주문 체결 불가 : " + sellOrder.getRemainingQuantity());
 			}
 
 			// 주문 매칭 처리
@@ -140,39 +162,19 @@ public class OrderBookService {
 			// 매수가보다 낮거나 같은 매도 주문 찾기
 			Map.Entry<Price, OrderStorage> bestSell = sellOrders.firstEntry();
 
-			if (bestSell == null || !bestSell.getKey().isHigherThan(buyOrder.getPrice())) {
-				addToOrderBook(buyOrders, buyOrder);
+			if (bestSell == null || bestSell.getKey().isLowerThan(buyOrder.getPrice())) {
+				if (buyOrder.getPrice().compareTo(BigDecimal.ZERO) != 0) {
+					addToOrderBook(buyOrders, buyOrder);
+				}
 				break;
 			}
 
 			// 주문 매칭 처리
 			matchOrders(bestSell.getValue(), buyOrder);
 
-			// 매도 큐가 비었으면 제거
+			// 매수 큐가 비었으면 제거
 			if (bestSell.getValue().isEmpty()) {
-				sellOrders.remove(bestSell.getKey());
-			}
-		}
-	}
-
-	/**
-	 * 시장가 매수 주문 처리 - 읽기, 제거 발생
-	 */
-	private void matchMarketBuyOrder(final Order buyOrder) throws MatchingException {
-		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
-			// 매도 주문 찾기
-			Map.Entry<Price, OrderStorage> bestSell = sellOrders.firstEntry();
-
-			if (bestSell == null) {
-				throw new MatchingException("주문 체결 불가 : " + buyOrder.getRemainingQuantity());
-			}
-
-			// 주문 매칭 처리
-			matchOrders(bestSell.getValue(), buyOrder);
-
-			// 매도 큐가 비었으면 제거
-			if (bestSell.getValue().isEmpty()) {
-				sellOrders.remove(bestSell.getKey());
+				buyOrders.remove(bestSell.getKey());
 			}
 		}
 	}
@@ -193,11 +195,7 @@ public class OrderBookService {
 	/**
 	 * 주문장에 주문 추가
 	 */
-	private synchronized void addToOrderBook(final TreeMap<Price, OrderStorage> orderBook, final Order order) {
-		if (order.getPrice().compareTo(BigDecimal.ZERO) == 0) {
-			return;
-		}
-
+	private synchronized void addToOrderBook(final NavigableMap<Price, OrderStorage> orderBook, final Order order) {
 		orderBook.computeIfAbsent(
 				new Price(order.getPrice()),
 				k -> new OrderStorage()

@@ -61,7 +61,7 @@ public class OrderService {
 
 	private final AccountService accountService;
 
-	public void placeOrder(final OrderRequest request, final String username) throws MatchingException {
+	public void placeOrder(final OrderRequest request, final String username) {
 		// 지정가 주문 가격 견적 유효성 검증
 		final BigDecimal price = request.price();
 		final OrderValidator validator = OrderValidator.getUnitByPrice(price);
@@ -108,7 +108,7 @@ public class OrderService {
 		return new OrderDto(request).to(account);
 	}
 
-	public void processOrder(final Order order) throws MatchingException {
+	public void processOrder(final Order order) {
 		final OrderBookService orderBook = addOrderBook(order.getCompanyCode());
 		orderBook.received(order);
 
@@ -120,7 +120,7 @@ public class OrderService {
 	// 종목별 주문장 생성, 이미 존재할 경우 반환
 	public OrderBookService addOrderBook(final String companyCode) {
 		return orderBooks.computeIfAbsent(companyCode, k ->
-			new OrderBookService(companyCode, tradeHistoryService, stockHoldingsService, accountService));
+			new OrderBookService(companyCode, tradeHistoryService));
 	}
 
 	// 주문 발생 시 호가창 업데이트 브로드캐스트
