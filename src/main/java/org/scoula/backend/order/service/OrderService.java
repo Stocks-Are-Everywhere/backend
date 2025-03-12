@@ -11,11 +11,8 @@ import org.scoula.backend.member.domain.Holdings;
 import org.scoula.backend.member.exception.HoldingsNotFoundException;
 import org.scoula.backend.member.repository.impls.HoldingsRepositoryImpl;
 import org.scoula.backend.member.domain.Company;
-import org.scoula.backend.member.service.reposiotry.AccountRepository;
 import org.scoula.backend.member.service.reposiotry.CompanyRepository;
 import org.scoula.backend.member.service.reposiotry.MemberRepository;
-import org.scoula.backend.member.service.AccountService;
-import org.scoula.backend.member.service.StockHoldingsService;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
@@ -25,7 +22,6 @@ import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.OrderDto;
 import org.scoula.backend.order.service.exception.CompanyNotFound;
-import org.scoula.backend.order.service.exception.MatchingException;
 import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
 import org.scoula.backend.order.service.orderbook.OrderBookService;
 import org.scoula.backend.order.service.validator.OrderValidator;
@@ -34,7 +30,6 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor

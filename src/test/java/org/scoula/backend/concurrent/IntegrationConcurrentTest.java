@@ -147,7 +147,7 @@ public class IntegrationConcurrentTest {
                     orderService.placeOrder(order, TEST_USERNAME);
                 } catch (Exception e) {
                     System.out.println(finalI + " [Exception] " + e.fillInStackTrace() + ": " + e.getMessage());
-                    Arrays.stream(e.getSuppressed()).forEach(suppressed -> System.out.println("Suppressed: " + suppressed));
+                    Arrays.stream(e.getStackTrace()).forEach(element -> System.out.println("StackTrace: " + element));
                     exceptionCount.getAndIncrement();
                 } finally {
                     latch.countDown();

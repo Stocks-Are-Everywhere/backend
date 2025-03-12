@@ -40,7 +40,7 @@ class AccountServiceTest {
         Account account = accountRepository.getByMemberId(member.getId());
 
         // when
-        accountService.updateAccountAfterTrade(Type.BUY, account, BigDecimal.ONE, BigDecimal.ONE);
+        accountService.updateAccountAfterTrade(member.getId(), Type.BUY, BigDecimal.ONE, BigDecimal.ONE);
 
         // then
         assertThat(account.getBalance()).isEqualTo(new BigDecimal(100000000).subtract(BigDecimal.ONE));

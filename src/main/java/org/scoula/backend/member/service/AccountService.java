@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -17,9 +18,9 @@ public class AccountService {
 
 	private final AccountRepository accountRepository;
 
-	public void updateAccountAfterTrade(
-		final Type type, final Account account, final BigDecimal price, final BigDecimal quantity) {
+	@Transactional
+	public void updateAccountAfterTrade(final Long memberId, final Type type, final BigDecimal price, final BigDecimal quantity) {
+		Account account = accountRepository.getByMemberId(memberId);
 		account.processOrder(type, price, quantity);
-		accountRepository.save(account);
 	}
 }

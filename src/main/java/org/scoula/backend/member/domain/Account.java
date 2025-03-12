@@ -4,6 +4,7 @@ import static jakarta.persistence.FetchType.*;
 
 import java.math.BigDecimal;
 
+import jakarta.persistence.Version;
 import org.scoula.backend.global.entity.BaseEntity;
 import org.scoula.backend.member.exception.InsufficientBalanceException;
 import org.scoula.backend.order.domain.Type;
@@ -44,6 +45,9 @@ public class Account extends BaseEntity {
 	@OneToOne(fetch = LAZY)
 	@JoinColumn(name = "member_id", nullable = false)
 	private Member member;
+
+	@Version
+	private Long version;
 
     public Account(final Member member) {
         this.member = member;
