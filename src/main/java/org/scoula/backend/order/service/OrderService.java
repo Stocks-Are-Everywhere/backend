@@ -106,7 +106,18 @@ public class OrderService {
 
 	public void processOrder(final Order order) {
 		final OrderBookService orderBook = addOrderBook(order.getCompanyCode());
-		orderBook.received(order);
+		Order copyOrder = Order.builder()
+				.id(order.getId())
+				.companyCode(order.getCompanyCode())
+				.totalQuantity(order.getTotalQuantity())
+				.remainingQuantity(order.getRemainingQuantity())
+				.type(order.getType())
+				.price(order.getPrice())
+				.status(order.getStatus())
+				.account(order.getAccount())
+				.createdDateTime(order.getCreatedDateTime())
+				.build();
+		orderBook.received(copyOrder);
 
 		// 웹소켓 보내기
 		final OrderBookResponse response = orderBook.getBook();
