@@ -104,12 +104,13 @@ public class OrderService {
 		Order copyOrder = Order.builder()
 				.id(order.getId())
 				.companyCode(order.getCompanyCode())
+				.type(order.getType())
 				.totalQuantity(order.getTotalQuantity())
 				.remainingQuantity(order.getRemainingQuantity())
-				.type(order.getType())
-				.price(order.getPrice())
 				.status(order.getStatus())
+				.price(order.getPrice())
 				.account(order.getAccount())
+				.timestamp(order.getTimestamp())
 				.createdDateTime(order.getCreatedDateTime())
 				.build();
 		orderBook.received(copyOrder);

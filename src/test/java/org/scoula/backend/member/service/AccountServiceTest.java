@@ -37,12 +37,13 @@ class AccountServiceTest {
     @DisplayName("메서드가 호출되면 account에서 금액을 감소시킨다.")
     void updateAccountAfterTradeSuccess() {
         // given
-        Account account = accountRepository.getByMemberId(member.getId());
+        Long memberId = member.getId();
 
         // when
-        accountService.updateAccountAfterTrade(member.getId(), Type.BUY, BigDecimal.ONE, BigDecimal.ONE);
+        accountService.updateAccountAfterTrade(memberId, Type.BUY, BigDecimal.ONE, BigDecimal.ONE);
 
         // then
+        Account account = accountRepository.getByMemberId(memberId);
         assertThat(account.getBalance()).isEqualTo(new BigDecimal(100000000).subtract(BigDecimal.ONE));
     }
 

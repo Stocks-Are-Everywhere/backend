@@ -98,25 +98,17 @@ public class IntegrationConcurrentTest {
         ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT);
         CountDownLatch latch = new CountDownLatch(THREAD_COUNT * 2);
 
-        long startBuy = System.currentTimeMillis();
         AtomicInteger sellExceptionCount = processSellOrders(executorService, latch);
-        long endBuy = System.currentTimeMillis();
-
         Thread.sleep(5000);
+
         System.out.println("sell start");
-        long startSell = System.currentTimeMillis();
 
         AtomicInteger buyExceptionCount = processBuyOrders(executorService, latch);
 
         latch.await();
         executorService.shutdown();
-        long endSell = System.currentTimeMillis();
+
         Thread.sleep(5000);
-
-        long durationTimeSec = (endBuy - startBuy) + (endSell - startSell);
-
-        System.out.println(durationTimeSec + "m/s");
-        System.out.println((durationTimeSec / 1000) + "sec");
 
         verifyTradeResults(buyExceptionCount.get(), sellExceptionCount.get());
     }
