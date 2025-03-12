@@ -57,8 +57,9 @@ public class Member extends BaseEntity {
 		this.role = role != null ? role : MemberRoleEnum.USER;
 	}
 
-	public void createAccount() {
+	public Account createAccount() {
 		this.account = new Account(this);
+		return this.account;
 	}
 
 	public BigDecimal getMemberBalance() {
