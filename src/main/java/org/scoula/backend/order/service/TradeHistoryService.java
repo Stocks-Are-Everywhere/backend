@@ -1,6 +1,5 @@
 package org.scoula.backend.order.service;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -14,29 +13,20 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
-import org.scoula.backend.member.domain.Account;
-import org.scoula.backend.member.domain.Holdings;
-import org.scoula.backend.member.service.AccountService;
-import org.scoula.backend.member.service.StockHoldingsService;
-import org.scoula.backend.member.service.reposiotry.AccountRepository;
-import org.scoula.backend.member.service.reposiotry.HoldingsRepository;
 import org.scoula.backend.order.controller.response.KisStockResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
-import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.TimeFrame;
 import org.scoula.backend.order.domain.TradeHistory;
-import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.CandleDto;
 import org.scoula.backend.order.dto.ChartResponseDto;
 import org.scoula.backend.order.dto.ChartUpdateDto;
-import org.scoula.backend.order.repository.TradeHistoryRepositoryImpl;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 거래 내역 관리 서비스
@@ -46,10 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class TradeHistoryService {
 	private final TradeHistoryRepository tradeHistoryRepository;
-	private final OrderRepository orderRepository;
 	private final SimpMessagingTemplate messagingTemplate;
-	private final AccountService accountService;
-	private final StockHoldingsService stockHoldingsService;
+	private final ApplicationEventPublisher eventPublisher;
 
 	// 상수 정의
 	private static final int MAX_TRADE_HISTORY = 1000; // 종목당 최대 보관 거래 수
@@ -425,30 +413,12 @@ public class TradeHistoryService {
 	/**
 	 * 거래 내역 저장 (일반 사용자)
 	 */
-	@Transactional
 	public void saveTradeHistory(final TradeHistoryResponse tradeHistoryResponse) {
-		TradeHistory tradeHistory = convertToEntity(tradeHistoryResponse);
-
 		// 거래 내역 DB 저장
-		tradeHistoryRepository.save(tradeHistory);
+		TradeHistory tradeHistory = tradeHistoryRepository.save(convertToEntity(tradeHistoryResponse));
 
-		// 1. 주문 내역 조회
-		Order buyOrder = orderRepository.getById(tradeHistory.getBuyOrderId());
-		Order sellOrder = orderRepository.getById(tradeHistory.getSellOrderId());
+		eventPublisher.publishEvent(tradeHistory);
 
-		buyOrder.decreaseRemainingQuantity(tradeHistory.getQuantity());
-		sellOrder.decreaseRemainingQuantity(tradeHistory.getQuantity());
-
-		orderRepository.save(buyOrder);
-		orderRepository.save(sellOrder);
-
-		// 2. 계좌 잔액 처리
-		accountService.updateAccountAfterTrade(buyOrder.getMemberId(), Type.BUY, tradeHistory.getPrice(), tradeHistory.getQuantity());
-		accountService.updateAccountAfterTrade(sellOrder.getMemberId(), Type.SELL, tradeHistory.getPrice(), tradeHistory.getQuantity());
-
-		// 3. 보유 주식 처리
-		stockHoldingsService.updateHoldingsAfterTrade(Type.BUY, buyOrder.getAccount(), tradeHistory.getCompanyCode(), tradeHistory.getPrice(), tradeHistory.getQuantity());
-		stockHoldingsService.updateHoldingsAfterTrade(Type.BUY, buyOrder.getAccount(), tradeHistory.getCompanyCode(), tradeHistory.getPrice(), tradeHistory.getQuantity());
 
 		// 메모리 저장 및 캔들 업데이트
 		storeTradeHistory(tradeHistory);
