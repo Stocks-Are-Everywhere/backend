@@ -13,8 +13,8 @@ import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
 import org.scoula.backend.order.controller.response.OrderSummaryResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
-import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.OrderStatus;
+import org.scoula.backend.order.domain.TradeOrder;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.PriceLevelDto;
 import org.scoula.backend.order.service.TradeHistoryService;
@@ -48,7 +48,7 @@ public class OrderBookService {
 	/**
 	 * 주문 접수 및 처리
 	 */
-	public void received(final Order order) {
+	public void received(final TradeOrder order) {
 		if (order.getStatus() == OrderStatus.MARKET) {
 			processMarketOrder(order);
 		} else {
@@ -59,7 +59,7 @@ public class OrderBookService {
 	/**
 	 * 시장가 주문 처리
 	 */
-	private void processMarketOrder(final Order order) {
+	private void processMarketOrder(final TradeOrder order) {
 		if (order.getType() == Type.BUY) {
 			matchMarketBuyOrder(order);
 		} else {
@@ -70,7 +70,7 @@ public class OrderBookService {
 	/**
 	 * 시장가 매도 주문 처리 - TreeMap 읽기, 제거 발생
 	 */
-	private void matchMarketSellOrder(final Order sellOrder) {
+	private void matchMarketSellOrder(final TradeOrder sellOrder) {
 		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매수 주문 찾기
 			Map.Entry<Price, OrderStorage> bestBuy = buyOrders.firstEntry();
@@ -93,7 +93,7 @@ public class OrderBookService {
 	/**
 	 * 시장가 매수 주문 처리 - 읽기, 제거 발생
 	 */
-	private void matchMarketBuyOrder(final Order buyOrder) {
+	private void matchMarketBuyOrder(final TradeOrder buyOrder) {
 		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매도 주문 찾기
 			Map.Entry<Price, OrderStorage> bestSell = sellOrders.firstEntry();
@@ -117,7 +117,7 @@ public class OrderBookService {
 	/**
 	 * 지정가 주문 처리
 	 */
-	private void processLimitOrder(final Order order) {
+	private void processLimitOrder(final TradeOrder order) {
 		if (order.getType() == Type.BUY) {
 			matchBuyOrder(order);
 		} else {
@@ -128,7 +128,7 @@ public class OrderBookService {
 	/**
 	 * 지정가 매도 주문 처리 - TreeMap 읽기, 삭제 발생
 	 */
-	private void matchSellOrder(final Order sellOrder) {
+	private void matchSellOrder(final TradeOrder sellOrder) {
 		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매도가보다 높거나 같은 매수 주문 찾기
 			Map.Entry<Price, OrderStorage> bestBuy = buyOrders.firstEntry();
@@ -154,7 +154,7 @@ public class OrderBookService {
 	/**
 	 * 지정가 매수 주문 처리 -- TreeMap 읽기 발생, 제거 발생
 	 */
-	private void matchBuyOrder(final Order buyOrder) {
+	private void matchBuyOrder(final TradeOrder buyOrder) {
 		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매수가보다 낮거나 같은 매도 주문 찾기
 			Map.Entry<Price, OrderStorage> bestSell = sellOrders.firstEntry();
@@ -179,7 +179,7 @@ public class OrderBookService {
 	/**
 	 * 주문 매칭 처리 - 변경 발생
 	 */
-	private synchronized void matchOrders(final OrderStorage existingOrders, final Order incomingOrder) {
+	private synchronized void matchOrders(final OrderStorage existingOrders, final TradeOrder incomingOrder) {
 		while (!existingOrders.isEmpty() && incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 1. 주문 매칭
 			TradeHistoryResponse response = existingOrders.match(incomingOrder);
@@ -192,7 +192,7 @@ public class OrderBookService {
 	/**
 	 * 주문장에 주문 추가
 	 */
-	private synchronized void addToOrderBook(final NavigableMap<Price, OrderStorage> orderBook, final Order order) {
+	private synchronized void addToOrderBook(final NavigableMap<Price, OrderStorage> orderBook, final TradeOrder order) {
 		orderBook.computeIfAbsent(
 				new Price(order.getPrice()),
 				k -> new OrderStorage()
@@ -246,7 +246,7 @@ public class OrderBookService {
 	 */
 	private BigDecimal calculateTotalQuantity(OrderStorage orders) {
 		return orders.getElements().stream()
-				.map(Order::getRemainingQuantity)
+				.map(TradeOrder::getRemainingQuantity)
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
 	}
 

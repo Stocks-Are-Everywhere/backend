@@ -419,7 +419,6 @@ public class TradeHistoryService {
 
 		eventPublisher.publishEvent(tradeHistory);
 
-
 		// 메모리 저장 및 캔들 업데이트
 		storeTradeHistory(tradeHistory);
 		updateAllTimeFrameCandles(tradeHistory);

@@ -19,6 +19,7 @@ import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
 import org.scoula.backend.order.controller.response.OrderSummaryResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.domain.Order;
+import org.scoula.backend.order.domain.TradeOrder;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.OrderDto;
 import org.scoula.backend.order.service.exception.CompanyNotFound;
@@ -101,19 +102,18 @@ public class OrderService {
 
 	public void processOrder(final Order order) {
 		final OrderBookService orderBook = addOrderBook(order.getCompanyCode());
-		Order copyOrder = Order.builder()
-				.id(order.getId())
-				.companyCode(order.getCompanyCode())
-				.type(order.getType())
-				.totalQuantity(order.getTotalQuantity())
-				.remainingQuantity(order.getRemainingQuantity())
-				.status(order.getStatus())
-				.price(order.getPrice())
-				.account(order.getAccount())
-				.timestamp(order.getTimestamp())
-				.createdDateTime(order.getCreatedDateTime())
-				.build();
-		orderBook.received(copyOrder);
+		TradeOrder tradeOrderDto = new TradeOrder(
+				order.getId(),
+				order.getCompanyCode(),
+				order.getType(),
+				order.getStatus(),
+				order.getTotalQuantity(),
+				order.getRemainingQuantity(),
+				order.getPrice(),
+				order.getCreatedDateTime(),
+				order.getAccount()
+		);
+		orderBook.received(tradeOrderDto);
 
 		// 웹소켓 보내기
 		final OrderBookResponse response = orderBook.getBook();

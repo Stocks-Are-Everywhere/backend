@@ -2,6 +2,7 @@ package org.scoula.backend.concurrent;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.domain.Holdings;
 import org.scoula.backend.member.domain.Member;
@@ -24,7 +25,6 @@ import org.springframework.test.annotation.DirtiesContext;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -41,7 +41,7 @@ public class IntegrationConcurrentTest {
     private static final String TEST_USERNAME = "username";
     private static final BigDecimal INITIAL_QUANTITY = new BigDecimal("10000");
     private static final BigDecimal TEST_PRICE = new BigDecimal("1000");
-    private static final BigDecimal TEST_ORDER_QUANTITY = BigDecimal.valueOf(10);
+    private static final BigDecimal TEST_ORDER_QUANTITY = BigDecimal.valueOf(1);
     private static final String TEST_COMPANY_CODE = "test";
 
     @Autowired private OrderService orderService;
@@ -69,28 +69,45 @@ public class IntegrationConcurrentTest {
             .closingPrice(TEST_PRICE)
             .build();
     private final Member testMember = Member.builder()
-            .username(TEST_USERNAME)
-            .googleId("googleId")
-            .email("email")
+            .username("username1")
+            .googleId("googleId1")
+            .email("email1")
+            .role(MemberRoleEnum.USER)
+            .build();
+    private final Member testMember2 = Member.builder()
+            .username("username2")
+            .googleId("googleId2")
+            .email("email2")
             .role(MemberRoleEnum.USER)
             .build();
 
     @BeforeEach
     public void setup() throws InterruptedException {
         testMember.createAccount();
+        testMember2.createAccount();
         memberRepository.save(testMember);
+        memberRepository.save(testMember2);
         companyRepository.save(testCompany);
         Thread.sleep(500);
 
         Holdings holdings = Holdings.builder()
                 .companyCode(testCompany.getIsuCd())
-                .quantity(INITIAL_QUANTITY)
+                .quantity(new BigDecimal(THREAD_COUNT * 10))
                 .reservedQuantity(BigDecimal.ZERO)
                 .averagePrice(TEST_PRICE)
                 .totalPurchasePrice(TEST_PRICE)
                 .account(testMember.getAccount())
                 .build();
+        Holdings holdings2 = Holdings.builder()
+                .companyCode(testCompany.getIsuCd())
+                .quantity(new BigDecimal(THREAD_COUNT * 10))
+                .reservedQuantity(BigDecimal.ZERO)
+                .averagePrice(TEST_PRICE)
+                .totalPurchasePrice(TEST_PRICE)
+                .account(testMember2.getAccount())
+                .build();
         holdingsRepository.save(holdings);
+        holdingsRepository.save(holdings2);
     }
 
     @Test
@@ -114,32 +131,31 @@ public class IntegrationConcurrentTest {
     }
 
     private AtomicInteger processBuyOrders(ExecutorService executorService, CountDownLatch latch) {
-        List<OrderRequest> buyOrders = createOrderRequests(Type.BUY);
+        List<OrderRequest> buyOrders = createOrderRequests(Type.BUY, testMember);
         AtomicInteger exceptionCount = new AtomicInteger();
         
-        submitOrders(executorService, latch, buyOrders, exceptionCount);
+        submitOrders(executorService, latch, buyOrders, exceptionCount, testMember);
         return exceptionCount;
     }
 
     private AtomicInteger processSellOrders(ExecutorService executorService, CountDownLatch latch) {
-        List<OrderRequest> sellOrders = createOrderRequests(Type.SELL);
+        List<OrderRequest> sellOrders = createOrderRequests(Type.SELL, testMember2);
         AtomicInteger exceptionCount = new AtomicInteger();
         
-        submitOrders(executorService, latch, sellOrders, exceptionCount);
+        submitOrders(executorService, latch, sellOrders, exceptionCount, testMember2);
         return exceptionCount;
     }
 
     private void submitOrders(ExecutorService executorService, CountDownLatch latch, 
-                            List<OrderRequest> orders, AtomicInteger exceptionCount) {
+                            List<OrderRequest> orders, AtomicInteger exceptionCount, Member member) {
         for (int i = 0; i < orders.size(); i++) {
             OrderRequest order = orders.get(i);
             int finalI = i;
             executorService.execute(() -> {
                 try {
-                    orderService.placeOrder(order, TEST_USERNAME);
+                    orderService.placeOrder(order, member.getUsername());
                 } catch (Exception e) {
                     System.out.println(finalI + " [Exception] " + e.fillInStackTrace() + ": " + e.getMessage());
-                    Arrays.stream(e.getStackTrace()).forEach(element -> System.out.println("StackTrace: " + element));
                     exceptionCount.getAndIncrement();
                 } finally {
                     latch.countDown();
@@ -148,16 +164,17 @@ public class IntegrationConcurrentTest {
         }
     }
 
-    private List<OrderRequest> createOrderRequests(Type type) {
+    private List<OrderRequest> createOrderRequests(Type type, Member member) {
         List<OrderRequest> orders = new ArrayList<>();
+        Account account = memberRepository.getByUsername(member.getUsername()).getAccount();
         for (int i = 0; i < THREAD_COUNT; i++) {
-            orders.add(createOrderRequest(type, TEST_ORDER_QUANTITY, TEST_PRICE));
+            orders.add(createOrderRequest(type, TEST_ORDER_QUANTITY, TEST_PRICE, account));
 //            orders.add(createOrderRequest(type, TEST_ORDER_QUANTITY, TEST_PRICE.add(new BigDecimal("100"))));
         }
         return orders;
     }
 
-    private OrderRequest createOrderRequest(Type type, BigDecimal quantity, BigDecimal price) {
+    private OrderRequest createOrderRequest(Type type, BigDecimal quantity, BigDecimal price, Account account) {
         return new OrderRequest(
                 TEST_COMPANY_CODE,
                 type,
@@ -165,7 +182,7 @@ public class IntegrationConcurrentTest {
                 quantity,
                 OrderStatus.ACTIVE,
                 price,
-                testMember.getAccount().getId()
+                account.getId()
         );
     }
 

@@ -28,10 +28,9 @@ import org.scoula.backend.member.service.StockHoldingsService;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
-import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.OrderStatus;
+import org.scoula.backend.order.domain.TradeOrder;
 import org.scoula.backend.order.domain.Type;
-import org.scoula.backend.order.dto.PriceLevelDto;
 import org.scoula.backend.order.service.exception.MatchingException;
 import org.scoula.backend.order.service.orderbook.OrderBookService;
 import org.springframework.test.context.ActiveProfiles;
@@ -93,7 +92,7 @@ class OrderBookServiceTest {
 	@DisplayName("TC3.1.1 지정가 매수 주문 추가")
 	@Transactional
 	void testReceiveLimitBuyOrder() throws MatchingException {
-		Order buyOrder = createOrder(Type.BUY, new BigDecimal("50000"), new BigDecimal("10"), OrderStatus.ACTIVE, account1);
+		TradeOrder buyOrder = createOrder(Type.BUY, new BigDecimal("50000"), new BigDecimal("10"), OrderStatus.ACTIVE, account1);
 		orderBookService.received(buyOrder);
 
 		OrderBookResponse response = orderBookService.getBook();
@@ -106,7 +105,7 @@ class OrderBookServiceTest {
 	@DisplayName("TC3.2.1 지정가 매도 주문 추가")
 	@Transactional
 	void testReceiveLimitSellOrder() throws MatchingException {
-		Order sellOrder = createOrder(Type.SELL, new BigDecimal("50000"), new BigDecimal("10"), OrderStatus.ACTIVE, account1);
+		TradeOrder sellOrder = createOrder(Type.SELL, new BigDecimal("50000"), new BigDecimal("10"), OrderStatus.ACTIVE, account1);
 		orderBookService.received(sellOrder);
 
 		OrderBookResponse response = orderBookService.getBook();
@@ -119,7 +118,7 @@ class OrderBookServiceTest {
 	@DisplayName("TC5.1 주문장 스냅샷 조회")
 	@Transactional
 	void testGetSnapshot() throws MatchingException {
-		Order buyOrder = createOrder(Type.BUY, new BigDecimal("50000"), new BigDecimal("10"), OrderStatus.ACTIVE, account1);
+		TradeOrder buyOrder = createOrder(Type.BUY, new BigDecimal("50000"), new BigDecimal("10"), OrderStatus.ACTIVE, account1);
 		orderBookService.received(buyOrder);
 
 		OrderSnapshotResponse snapshot = orderBookService.getSnapshot();
@@ -255,16 +254,15 @@ class OrderBookServiceTest {
 	// 	// 모든 스레드의 주문이 정확히 반영되어야 함
 	// }
 
-	private Order createOrder(Type type, BigDecimal price, BigDecimal quantity, OrderStatus status, Account account1) {
+	private TradeOrder createOrder(Type type, BigDecimal price, BigDecimal quantity, OrderStatus status, Account account1) {
 		Long now = Instant.now().getEpochSecond();
-		return Order.builder()
+		return TradeOrder.builder()
 				.companyCode(COMPANY_CODE)
 				.type(type)
 				.totalQuantity(quantity)
 				.remainingQuantity(quantity)
 				.status(status)
 				.price(price)
-				.timestamp(now)
 				.build();
 	}
 
@@ -314,11 +312,11 @@ class OrderBookServiceTest {
 	@DisplayName("매수 주문의 경우 높은 가격의 주문부터 체결된다.")
 	void buyOrderHigherPricePriorityMatching() throws MatchingException {
 		Long createdAt = Instant.now().getEpochSecond();
-		Order buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(2000), new BigDecimal(10), createdAt,
+		TradeOrder buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(2000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE, account1);
-		Order buyOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
+		TradeOrder buyOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE, account1);
-		Order sellOrder = createOrder(3L, Type.SELL, new BigDecimal(0), new BigDecimal(10), createdAt,
+		TradeOrder sellOrder = createOrder(3L, Type.SELL, new BigDecimal(0), new BigDecimal(10), createdAt,
 				OrderStatus.MARKET, account2);
 
 		orderBookService.received(buyOrder1);
@@ -334,11 +332,11 @@ class OrderBookServiceTest {
 	@DisplayName("매도 주문의 경우 낮은 가격의 주문부터 체결된다.")
 	void sellOrderLowerPricePriorityMatching() throws MatchingException {
 		Long createdAt = Instant.now().getEpochSecond();
-		Order sellOrder1 = createOrder(1L, Type.SELL, new BigDecimal(1000), new BigDecimal(10), createdAt,
+		TradeOrder sellOrder1 = createOrder(1L, Type.SELL, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE, account1);
-		Order sellOrder2 = createOrder(2L, Type.SELL, new BigDecimal(2000), new BigDecimal(10), createdAt,
+		TradeOrder sellOrder2 = createOrder(2L, Type.SELL, new BigDecimal(2000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE, account1);
-		Order buyOrder = createOrder(3L, Type.BUY, new BigDecimal(0), new BigDecimal(10), createdAt,
+		TradeOrder buyOrder = createOrder(3L, Type.BUY, new BigDecimal(0), new BigDecimal(10), createdAt,
 				OrderStatus.MARKET, account2);
 
 		orderBookService.received(sellOrder1);
@@ -354,11 +352,11 @@ class OrderBookServiceTest {
 	@DisplayName("매수 주문시, 같은 가격일 경우 먼저 주문이 들어온 주문부터 처리한다.")
 	void buyOrderTimePriorityMatching() throws MatchingException {
 		Long createdAt = Instant.now().getEpochSecond();
-		Order buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt + 1,
+		TradeOrder buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt + 1,
 				OrderStatus.ACTIVE, account1);
-		Order buyOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
+		TradeOrder buyOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE, account1);
-		Order sellOrder = createOrder(3L, Type.SELL, new BigDecimal(1000), new BigDecimal(10), createdAt,
+		TradeOrder sellOrder = createOrder(3L, Type.SELL, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.MARKET, account2);
 		orderBookService.received(buyOrder1);
 		orderBookService.received(buyOrder2);
@@ -373,11 +371,11 @@ class OrderBookServiceTest {
 	@DisplayName("매도 주문시, 같은 가격일 경우 먼저 주문이 들어온 주문부터 처리한다.")
 	void sellOrderTimePriorityMatching() throws MatchingException {
 		Long createdAt = Instant.now().getEpochSecond();
-		Order sellOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt + 1,
+		TradeOrder sellOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt + 1,
 				OrderStatus.ACTIVE, account1);
-		Order sellOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
+		TradeOrder sellOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE, account1);
-		Order buyOrder = createOrder(3L, Type.SELL, new BigDecimal(1000), new BigDecimal(10), createdAt,
+		TradeOrder buyOrder = createOrder(3L, Type.SELL, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.MARKET, account2);
 
 		orderBookService.received(sellOrder1);
@@ -393,11 +391,11 @@ class OrderBookServiceTest {
 	@DisplayName("매수 주문시, 모든 조건이 일치할 경우 수량이 많은 주문부터 체결한다.")
 	void buyOrderQuantityPriorityMatching() throws MatchingException {
 		Long createdAt = Instant.now().getEpochSecond();
-		Order buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
+		TradeOrder buyOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE, account1);
-		Order buyOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(11), createdAt,
+		TradeOrder buyOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(11), createdAt,
 				OrderStatus.ACTIVE, account1);
-		Order sellOrder = createOrder(3L, Type.SELL, new BigDecimal(1000), new BigDecimal(10), createdAt,
+		TradeOrder sellOrder = createOrder(3L, Type.SELL, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.MARKET, account2);
 
 		orderBookService.received(buyOrder1);
@@ -414,11 +412,11 @@ class OrderBookServiceTest {
 	void sellOrderQuantityPriorityMatching() throws MatchingException {
 
 		Long createdAt = Instant.now().getEpochSecond();
-		Order sellOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
+		TradeOrder sellOrder1 = createOrder(1L, Type.BUY, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.ACTIVE, account1);
-		Order sellOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(11), createdAt,
+		TradeOrder sellOrder2 = createOrder(2L, Type.BUY, new BigDecimal(1000), new BigDecimal(11), createdAt,
 				OrderStatus.ACTIVE, account1);
-		Order buyOrder = createOrder(3L, Type.SELL, new BigDecimal(1000), new BigDecimal(10), createdAt,
+		TradeOrder buyOrder = createOrder(3L, Type.SELL, new BigDecimal(1000), new BigDecimal(10), createdAt,
 				OrderStatus.MARKET, account2);
 
 		orderBookService.received(sellOrder1);
@@ -566,7 +564,7 @@ class OrderBookServiceTest {
 			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService);
 
 			// 시장가 매수 주문 (매도 호가가 없음)
-			Order marketBuyOrder = createOrder(Type.BUY, BigDecimal.ZERO, new BigDecimal("5"), OrderStatus.MARKET, account1);
+			TradeOrder marketBuyOrder = createOrder(Type.BUY, BigDecimal.ZERO, new BigDecimal("5"), OrderStatus.MARKET, account1);
 
 			// When & Then
 			// 예외가 발생해야 함
@@ -574,7 +572,7 @@ class OrderBookServiceTest {
 					"매칭되는 매도 주문이 없을 때 MatchingException이 발생해야 함");
 
 			// 시장가 매도 주문 (매수 호가가 없음)
-			Order marketSellOrder = createOrder(Type.SELL, BigDecimal.ZERO, new BigDecimal("5"), OrderStatus.MARKET, account1);
+			TradeOrder marketSellOrder = createOrder(Type.SELL, BigDecimal.ZERO, new BigDecimal("5"), OrderStatus.MARKET, account1);
 
 			// 예외가 발생해야 함
 			assertThrows(MatchingException.class, () -> orderBookService.received(marketSellOrder),
@@ -656,9 +654,9 @@ class OrderBookServiceTest {
 
 	}
 
-	private Order createOrder(Long id, Type type, BigDecimal price, BigDecimal quantity, Long timestamp,
+	private TradeOrder createOrder(Long id, Type type, BigDecimal price, BigDecimal quantity, Long timestamp,
 			OrderStatus status, Account account) {
-		return Order.builder()
+		return TradeOrder.builder()
 				.id(id)
 				.companyCode("005930")
 				.type(type)
@@ -666,7 +664,6 @@ class OrderBookServiceTest {
 				.remainingQuantity(quantity)
 				.status(OrderStatus.ACTIVE)
 				.price(price)
-				.timestamp(timestamp)
 				.status(status)
 				.account(account)
 				.build();

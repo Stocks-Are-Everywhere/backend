@@ -71,10 +71,6 @@ public class Order extends BaseEntity {
 		}
 	}
 
-	public boolean isSellType() {
-		return type == Type.SELL;
-	}
-
 	public Long getMemberId() {
 		return this.account.getMember().getId();
 	}
