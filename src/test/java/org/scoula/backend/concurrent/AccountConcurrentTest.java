@@ -1,0 +1,123 @@
+package org.scoula.backend.concurrent;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.scoula.backend.member.domain.Account;
+import org.scoula.backend.member.domain.Company;
+import org.scoula.backend.member.domain.Member;
+import org.scoula.backend.member.domain.MemberRoleEnum;
+import org.scoula.backend.member.service.AccountService;
+import org.scoula.backend.member.service.reposiotry.AccountRepository;
+import org.scoula.backend.member.service.reposiotry.CompanyRepository;
+import org.scoula.backend.member.service.reposiotry.MemberRepository;
+import org.scoula.backend.order.domain.Type;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@SpringBootTest
+class AccountConcurrentTest {
+
+    private static final int THREAD_COUNT = 500;
+    private static final String TEST_USERNAME = "username";
+    private static final BigDecimal INITIAL_QUANTITY = new BigDecimal("10000");
+    private static final BigDecimal TEST_PRICE = new BigDecimal("1000");
+    private static final BigDecimal TEST_ORDER_QUANTITY = BigDecimal.valueOf(10);
+    private static final String TEST_COMPANY_CODE = "test";
+
+    @Autowired
+    private AccountService accountService;
+
+    @Autowired
+    private AccountRepository accountRepository;
+
+    @Autowired
+    private MemberRepository memberRepository;
+
+    @Autowired
+    private CompanyRepository companyRepository;
+
+    private final Company testCompany = Company.builder()
+            .isuNm(TEST_COMPANY_CODE)
+            .isuCd(TEST_COMPANY_CODE)
+            .isuSrtCd(TEST_COMPANY_CODE)
+            .isuAbbrv(TEST_COMPANY_CODE)
+            .isuEngNm(TEST_COMPANY_CODE)
+            .listDd(TEST_COMPANY_CODE)
+            .mktTpNm(TEST_COMPANY_CODE)
+            .secugrpNm(TEST_COMPANY_CODE)
+            .sectTpNm(TEST_COMPANY_CODE)
+            .kindStkcertTpNm(TEST_COMPANY_CODE)
+            .parval(TEST_COMPANY_CODE)
+            .listShrs(TEST_COMPANY_CODE)
+            .closingPrice(TEST_PRICE)
+            .build();
+
+    private final Member testMember = Member.builder()
+            .username(TEST_USERNAME)
+            .googleId("googleId")
+            .email("email")
+            .role(MemberRoleEnum.USER)
+            .build();
+
+    @BeforeEach
+    public void setup() throws InterruptedException {
+        testMember.createAccount();
+        memberRepository.save(testMember);
+        companyRepository.save(testCompany);
+        Thread.sleep(500);
+    }
+
+    @Test
+    @DisplayName("")
+    void updateAccount() {
+        // given
+        Member member = memberRepository.getByUsername(TEST_USERNAME);
+        Account account = accountRepository.getById(member.getAccount().getId());
+
+        // when
+        accountService.updateAccountAfterTrade(Type.BUY, account, BigDecimal.ONE, BigDecimal.ONE);
+
+        // then
+        Account end = accountRepository.getById(1L);
+        assertThat(end.getReservedBalance().abs()).isEqualTo(new BigDecimal("1.00"));
+    }
+
+    @Test
+    @DisplayName("동시에 여러번 계좌를 업데이트 할 때, 모두 정상 반영 된다.")
+    void updateAccountConcurrently() throws InterruptedException {
+        Account account = accountRepository.getById(1L);
+
+        ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT);
+        CountDownLatch latch = new CountDownLatch(THREAD_COUNT);
+        AtomicInteger exceptionCount = new AtomicInteger(0);
+        for (int i = 0; i < THREAD_COUNT; i++) {
+            int finalI = i;
+            executorService.execute(() -> {
+                try {
+                    accountService.updateAccountAfterTrade(Type.BUY, account, BigDecimal.ONE, BigDecimal.ONE);
+                } catch (Exception e) {
+                    System.out.println(finalI + " [Exception] " + e.fillInStackTrace() + ": " + e.getMessage());
+                    Arrays.stream(e.getSuppressed()).forEach(suppressed -> System.out.println("Suppressed: " + suppressed));
+                    exceptionCount.getAndIncrement();
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        latch.await();
+        executorService.shutdown();
+
+        Account end = accountRepository.getById(1L);
+        assertThat(end.getReservedBalance().abs()).isEqualTo(new BigDecimal("500.00"));
+    }
+}
