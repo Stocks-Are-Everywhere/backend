@@ -7,7 +7,7 @@ import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.domain.MemberRoleEnum;
-import org.scoula.backend.member.facade.OptimisticLockAccountFacade;
+import org.scoula.backend.member.service.AccountService;
 import org.scoula.backend.member.service.reposiotry.AccountRepository;
 import org.scoula.backend.member.service.reposiotry.CompanyRepository;
 import org.scoula.backend.member.service.reposiotry.MemberRepository;
@@ -32,7 +32,7 @@ class AccountConcurrentTest {
     private static final String TEST_COMPANY_CODE = "test";
 
     @Autowired
-    private OptimisticLockAccountFacade optimisticLockAccountFacade;
+    private AccountService accountService;
 
     @Autowired
     private AccountRepository accountRepository;
@@ -86,7 +86,7 @@ class AccountConcurrentTest {
             int finalI = i;
             executorService.execute(() -> {
                 try {
-                    optimisticLockAccountFacade.updateAccountWithOptimisticLock(member.getId(), Type.BUY, BigDecimal.ONE, BigDecimal.ONE);
+                    accountService.updateAccountAfterTrade(member.getId(), Type.BUY, BigDecimal.ONE, BigDecimal.ONE);
                     System.out.println(finalI);
                 } catch (Exception e) {
                     System.out.println(finalI + " [Exception] " + e.fillInStackTrace() + ": " + e.getMessage());
