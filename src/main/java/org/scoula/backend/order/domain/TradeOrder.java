@@ -33,7 +33,7 @@ public class TradeOrder {
 
     // 입력 주문과 같은 계정으로부터의 주문인지 확인
     public boolean hasSameAccount(TradeOrder other) {
-        if (other == null) {
+        if (other == null || other.getAccount() == null) {
             return false;
         }
         return other.account.getId().equals(this.account.getId());

@@ -27,6 +27,19 @@ public class AccountTest {
     }
 
     @Test
+    @DisplayName("초기 금액을 1억으로 설정한다.")
+    void setInitialPrice() {
+        // given
+        member.createAccount();
+        Account account = member.getAccount();
+
+        // when
+        BigDecimal balance = account.getBalance();
+
+        // then
+        assertThat(balance).isEqualTo(new BigDecimal("100000000"));
+    }
+    @Test
     @DisplayName("Throw exception when balance is not enough for the amount")
     void throwExceptionWhenBalanceIsNotEnough() {
         // given

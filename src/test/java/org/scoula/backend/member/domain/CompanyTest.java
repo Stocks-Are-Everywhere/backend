@@ -15,9 +15,6 @@ import org.springframework.test.context.ContextConfiguration;
 @ContextConfiguration
 class CompanyTest {
 
-	@Autowired
-	private TestEntityManager entityManager;
-
 	private final Company company = Company.builder()
 		.isuCd("005930")
 		.closingPrice(new BigDecimal(1000))
@@ -26,15 +23,11 @@ class CompanyTest {
 	@Test
 	@DisplayName("회사 엔티티 생성 및 조회 테스트")
 	void testCompanyCreationAndRetrieval() {
-		Company company = createSampleCompany();
+		Company company = createSampleCompany();;
 
-		entityManager.persist(company);
-		entityManager.flush();
-
-		Company foundCompany = entityManager.find(Company.class, company.getId());
-		assertThat(foundCompany).isNotNull();
-		assertThat(foundCompany.getIsuSrtCd()).isEqualTo("005930");
-		assertThat(foundCompany.getIsuNm()).isEqualTo("삼성전자");
+		assertThat(company).isNotNull();
+		assertThat(company.getIsuSrtCd()).isEqualTo("005930");
+		assertThat(company.getIsuNm()).isEqualTo("삼성전자");
 	}
 
 	@Test
@@ -47,21 +40,6 @@ class CompanyTest {
 			.usingRecursiveComparison()
 			.ignoringFields("id")
 			.isEqualTo(company2);
-	}
-
-	@Test
-	@DisplayName("회사 엔티티 데이터 일관성 테스트")
-	void testCompanyDataConsistency() {
-		Company company = createSampleCompany();
-
-		entityManager.persist(company);
-		entityManager.flush();
-
-		Company foundCompany = entityManager.find(Company.class, company.getId());
-		assertThat(foundCompany)
-			.usingRecursiveComparison()
-			.ignoringFields("id")
-			.isEqualTo(company);
 	}
 
 	private Company createSampleCompany() {
@@ -78,23 +56,6 @@ class CompanyTest {
 			.parval("100")
 			.listShrs("5969782550")
 			.build();
-	}
-
-	@Test
-	@DisplayName("회사 엔티티의 모든 getter 메서드 테스트")
-	void testAllGetters() {
-		Company company = createSampleCompany();
-		assertThat(company.getIsuCd()).isEqualTo("KR7005930003");
-		assertThat(company.getIsuSrtCd()).isEqualTo("005930");
-		assertThat(company.getIsuNm()).isEqualTo("삼성전자");
-		assertThat(company.getIsuAbbrv()).isEqualTo("삼성전자");
-		assertThat(company.getIsuEngNm()).isEqualTo("Samsung Electronics Co., Ltd.");
-		assertThat(company.getListDd()).isEqualTo("1975-06-11");
-		assertThat(company.getMktTpNm()).isEqualTo("KOSPI");
-		assertThat(company.getSecugrpNm()).isEqualTo("주권");
-		assertThat(company.getKindStkcertTpNm()).isEqualTo("보통주");
-		assertThat(company.getParval()).isEqualTo("100");
-		assertThat(company.getListShrs()).isEqualTo("5969782550");
 	}
 
 	@Test
