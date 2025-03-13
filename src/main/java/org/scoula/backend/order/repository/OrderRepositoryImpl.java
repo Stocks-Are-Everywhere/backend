@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.service.OrderRepository;
+import org.scoula.backend.order.service.exception.OrderNotFoundExeception;
 import org.springframework.stereotype.Repository;
 
 import lombok.RequiredArgsConstructor;
@@ -21,8 +22,9 @@ public class OrderRepositoryImpl implements OrderRepository {
 	}
 
 	@Override
-	public Optional<Order> findById(final Long id) {
-		return orderJpaRepository.findById(id);
+	public Order getById(final Long id) {
+		return orderJpaRepository.findById(id)
+				.orElseThrow(OrderNotFoundExeception::new);
 	}
 
 	@Override

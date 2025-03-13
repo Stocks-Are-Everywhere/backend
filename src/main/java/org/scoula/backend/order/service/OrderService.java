@@ -1,37 +1,31 @@
 package org.scoula.backend.order.service;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.scoula.backend.member.domain.Account;
-import org.scoula.backend.member.domain.Member;
 import org.scoula.backend.member.domain.Holdings;
 import org.scoula.backend.member.exception.HoldingsNotFoundException;
 import org.scoula.backend.member.repository.impls.HoldingsRepositoryImpl;
-import org.scoula.backend.member.repository.impls.MemberRepositoryImpl;
 import org.scoula.backend.member.domain.Company;
-import org.scoula.backend.member.service.reposiotry.AccountRepository;
 import org.scoula.backend.member.service.reposiotry.CompanyRepository;
+import org.scoula.backend.member.service.reposiotry.HoldingsRepository;
 import org.scoula.backend.member.service.reposiotry.MemberRepository;
-import org.scoula.backend.member.repository.impls.CompanyRepositoryImpl;
-import org.scoula.backend.member.service.AccountService;
-import org.scoula.backend.member.service.StockHoldingsService;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
 import org.scoula.backend.order.controller.response.OrderSummaryResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
 import org.scoula.backend.order.domain.Order;
+import org.scoula.backend.order.domain.TradeOrder;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.OrderDto;
 import org.scoula.backend.order.service.exception.CompanyNotFound;
-import org.scoula.backend.order.repository.OrderRepositoryImpl;
-import org.scoula.backend.order.service.exception.MatchingException;
 import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
+import org.scoula.backend.order.service.orderbook.OrderBook;
 import org.scoula.backend.order.service.validator.OrderValidator;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -45,7 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderService {
 
 	// 종목 코드를 키로 하는 주문들
-	private final ConcurrentHashMap<String, OrderBookService> orderBooks = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<String, OrderBook> orderBooks = new ConcurrentHashMap<>();
 
 	private final SimpMessagingTemplate messagingTemplate;
 
@@ -53,19 +47,13 @@ public class OrderService {
 
 	private final CompanyRepository companyRepository;
 
-	private final AccountRepository accountRepository;
-
 	private final MemberRepository memberRepository;
 
 	private final OrderRepository orderRepository;
 
-	private final HoldingsRepositoryImpl holdingsRepository;
+	private final HoldingsRepository holdingsRepository;
 
-	private final StockHoldingsService stockHoldingsService;
-
-	private final AccountService accountService;
-
-	public void placeOrder(final OrderRequest request, final String username) throws MatchingException {
+	public Order placeOrder(final OrderRequest request, final String username) {
 		// 지정가 주문 가격 견적 유효성 검증
 		final BigDecimal price = request.price();
 		final OrderValidator validator = OrderValidator.getUnitByPrice(price);
@@ -79,6 +67,7 @@ public class OrderService {
 
 		// 주문 처리
 		processOrder(order);
+		return order;
 	}
 
 	// 종가 기준 가격 검증
@@ -102,6 +91,7 @@ public class OrderService {
 			holdings.validateEnoughHoldings(request.totalQuantity());
 			holdings.processReservedOrder(request.totalQuantity());
 		}
+
 		// 매수 시 주문 가능 잔액 검증 후 예약 매수 금액 설정
 		else {
 			account.validateDepositBalance(request.price().multiply(request.totalQuantity()));
@@ -112,9 +102,21 @@ public class OrderService {
 		return new OrderDto(request).to(account);
 	}
 
-	public void processOrder(final Order order) throws MatchingException {
-		final OrderBookService orderBook = addOrderBook(order.getCompanyCode());
-		orderBook.received(order);
+	public void processOrder(final Order order) {
+		final OrderBook orderBook = addOrderBook(order.getCompanyCode());
+		TradeOrder tradeOrderDto = new TradeOrder(
+				order.getId(),
+				order.getCompanyCode(),
+				order.getType(),
+				order.getStatus(),
+				order.getTotalQuantity(),
+				order.getRemainingQuantity(),
+				order.getPrice(),
+				order.getCreatedDateTime(),
+				order.getAccount()
+		);
+		List<TradeHistoryResponse> responses = orderBook.received(tradeOrderDto);
+		tradeHistoryService.saveTradeHistory(responses);
 
 		// 웹소켓 보내기
 		final OrderBookResponse response = orderBook.getBook();
@@ -122,9 +124,9 @@ public class OrderService {
 	}
 
 	// 종목별 주문장 생성, 이미 존재할 경우 반환
-	public OrderBookService addOrderBook(final String companyCode) {
+	public OrderBook addOrderBook(final String companyCode) {
 		return orderBooks.computeIfAbsent(companyCode, k ->
-			new OrderBookService(companyCode, tradeHistoryService, stockHoldingsService, accountService));
+			new OrderBook(companyCode, tradeHistoryService));
 	}
 
 	// 주문 발생 시 호가창 업데이트 브로드캐스트
@@ -134,19 +136,19 @@ public class OrderService {
 
 	// JSON 종목별 주문장 스냅샷 생성
 	public OrderSnapshotResponse getSnapshot(final String companyCode) {
-		final OrderBookService orderBook = addOrderBook(companyCode);
+		final OrderBook orderBook = addOrderBook(companyCode);
 		return orderBook.getSnapshot();
 	}
 
 	// JSON 종목별 호가창 생성
 	public OrderBookResponse getBook(final String companyCode) {
-		final OrderBookService orderBook = addOrderBook(companyCode);
+		final OrderBook orderBook = addOrderBook(companyCode);
 		return orderBook.getBook();
 	}
 
 	// JSON 종목별 주문 요약 생성
 	public OrderSummaryResponse getSummary(final String companyCode) {
-		final OrderBookService orderBook = addOrderBook(companyCode);
+		final OrderBook orderBook = addOrderBook(companyCode);
 		return orderBook.getSummary();
 	}
 
@@ -157,9 +159,9 @@ public class OrderService {
 	public Map<String, OrderSummaryResponse> getAllOrderSummaries() {
 		Map<String, OrderSummaryResponse> summaries = new HashMap<>();
 
-		for (Map.Entry<String, OrderBookService> entry : orderBooks.entrySet()) {
+		for (Map.Entry<String, OrderBook> entry : orderBooks.entrySet()) {
 			String companyCode = entry.getKey();
-			OrderBookService orderBook = entry.getValue();
+			OrderBook orderBook = entry.getValue();
 			OrderSummaryResponse summary = orderBook.getSummary();
 			summaries.put(companyCode, summary);
 		}

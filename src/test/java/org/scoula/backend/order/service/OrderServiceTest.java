@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,7 @@ import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.repository.OrderRepositoryImpl;
 import org.scoula.backend.order.service.exception.MatchingException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -75,6 +77,9 @@ class OrderServiceTest {
 	@Mock
 	AccountService accountService;
 
+	@Mock
+	EntityManager entityManager;
+
 
 
 	private final Company company = Company.builder().isuNm("AAPL").isuCd("AAPL").closingPrice(new BigDecimal("150.00")).build();
@@ -84,8 +89,8 @@ class OrderServiceTest {
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		orderService = new OrderService(messagingTemplate, tradeHistoryService, companyRepository, accountRepository,
-			memberRepository, orderRepository, holdingsRepository,  stockHoldingsService, accountService);
+		orderService = new OrderService(messagingTemplate, tradeHistoryService, companyRepository,
+			memberRepository, orderRepository, holdingsRepository);
 
 		member.createAccount();
 	}

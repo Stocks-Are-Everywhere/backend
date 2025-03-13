@@ -1,4 +1,7 @@
 spring:
+  config:
+    import: classpath:env.properties
+
   datasource:
     url: jdbc:h2:mem:testdb
     driver-class-name: org.h2.Driver
@@ -9,10 +12,26 @@ spring:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: create-drop
-    show-sql: true
+    show-sql: false
 
   main:
     allow-bean-definition-overriding: true
 
 jwt:
-  secret: testSecretKeyForJwtInTestEnvironment
+  secret:
+    key: ${JWT_TEST_SECRET_TOKEN}
+
+chrome:
+  extension:
+    id: ${CHROME_EXTENSION_ID}
+
+google:
+  client:
+    id: ${GOOGLE_CLIENT_ID}
+    secret: ${GOOGLE_CLIENT_SECRET}
+  redirect:
+    uri: ${GOOGLE_REDIRECT_URI}
+  token:
+    uri: ${GOOGLE_TOKEN_URI}
+  userinfo:
+    uri: ${GOOGLE_USER_INFO}

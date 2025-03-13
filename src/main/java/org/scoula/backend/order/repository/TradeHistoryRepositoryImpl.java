@@ -1,5 +1,6 @@
 package org.scoula.backend.order.repository;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.scoula.backend.order.domain.TradeHistory;
@@ -16,8 +17,8 @@ public class TradeHistoryRepositoryImpl implements TradeHistoryRepository {
 	private final TradeHistoryJpaRepository tradeHistoryJpaRepository;
 
 	@Override
-	public void save(final TradeHistory tradeHistory) {
-		tradeHistoryJpaRepository.save(tradeHistory);
+	public TradeHistory save(final TradeHistory tradeHistory) {
+		return tradeHistoryJpaRepository.save(tradeHistory);
 	}
 
 	@Override

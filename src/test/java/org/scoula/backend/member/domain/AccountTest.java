@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.scoula.backend.member.exception.InsufficientBalanceException;
@@ -17,8 +18,27 @@ public class AccountTest {
             .username("testuser")
             .build();
 
-    private final Account account = member.createAccount();
+    private Account account;
 
+    @BeforeEach
+    void setUp() {
+        member.createAccount();
+        account = member.getAccount();
+    }
+
+    @Test
+    @DisplayName("초기 금액을 1억으로 설정한다.")
+    void setInitialPrice() {
+        // given
+        member.createAccount();
+        Account account = member.getAccount();
+
+        // when
+        BigDecimal balance = account.getBalance();
+
+        // then
+        assertThat(balance).isEqualTo(new BigDecimal("100000000"));
+    }
     @Test
     @DisplayName("Throw exception when balance is not enough for the amount")
     void throwExceptionWhenBalanceIsNotEnough() {

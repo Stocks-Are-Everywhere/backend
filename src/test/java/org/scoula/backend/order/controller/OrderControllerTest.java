@@ -29,6 +29,8 @@ import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.PriceLevelDto;
 import org.scoula.backend.order.service.OrderService;
+import org.scoula.backend.order.service.orderbook.OrderStorage;
+import org.scoula.backend.order.service.orderbook.Price;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -91,8 +93,8 @@ class OrderControllerTest {
 	@WithMockUserDetails
 	void testGetSnapshot() throws Exception {
 		String companyCode = "AAPL";
-		TreeMap<BigDecimal, Queue<Order>> sellOrders = new TreeMap<>();
-		TreeMap<BigDecimal, Queue<Order>> buyOrders = new TreeMap<>();
+		TreeMap<Price, OrderStorage> sellOrders = new TreeMap<>();
+		TreeMap<Price, OrderStorage> buyOrders = new TreeMap<>();
 		OrderSnapshotResponse response = new OrderSnapshotResponse(companyCode, sellOrders, buyOrders);
 		when(orderService.getSnapshot(companyCode)).thenReturn(response);
 

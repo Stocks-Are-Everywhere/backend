@@ -24,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class TradeHistory extends BaseEntity {
 
-	//TODO : Entitiy에 companycode 추가
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "trade_history_id")

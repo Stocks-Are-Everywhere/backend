@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface TradeHistoryRepository {
 
-    void save(final TradeHistory tradeHistory);
+    TradeHistory save(final TradeHistory tradeHistory);
 
     /**
      * 모든 고유 회사 코드 조회

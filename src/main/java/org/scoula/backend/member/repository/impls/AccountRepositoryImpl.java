@@ -20,11 +20,13 @@ public class AccountRepositoryImpl implements AccountRepository {
 				.orElseThrow(AccountNotFoundException::new);
 	}
 
+	@Override
 	public Account getById(final Long id) {
 		return accountJpaRepository.findById(id)
 				.orElseThrow(AccountNotFoundException::new);
 	}
 
+	@Override
 	public Account save(final Account account) {
 		return accountJpaRepository.save(account);
 	}
