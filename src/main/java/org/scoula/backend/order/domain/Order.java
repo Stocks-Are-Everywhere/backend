@@ -63,7 +63,6 @@ public class Order extends BaseEntity {
 	@Column(nullable = false)
 	private Long timestamp;
 
-	// BigDecimal는 불변 객체 입니다.
 	public void decreaseRemainingQuantity(final BigDecimal quantity) {
 		this.remainingQuantity = this.remainingQuantity.subtract(quantity);
 		if (this.remainingQuantity.compareTo(BigDecimal.ZERO) == 0) {
@@ -74,4 +73,28 @@ public class Order extends BaseEntity {
 	public boolean isSellType() {
 		return type == Type.SELL;
 	}
+
+	// 주문 완료 처리
+	public void complete() {
+		this.status = OrderStatus.COMPLETE;
+	}
+
+	// 주문 수량 변경에 따른 상태 업데이트
+	public void updateStatusBasedOnQuantity() {
+		if (this.remainingQuantity.compareTo(BigDecimal.ZERO) == 0) {
+			this.complete();
+		}
+	}
+
+	// 체결 처리 (수량 감소 및 상태 업데이트)
+	public void processMatch(final BigDecimal matchedQuantity) {
+		this.decreaseRemainingQuantity(matchedQuantity);
+		this.updateStatusBasedOnQuantity();
+	}
+
+	// 체결 완료 여부 확인
+	public boolean isCompletelyFilled() {
+		return this.remainingQuantity.compareTo(BigDecimal.ZERO) == 0;
+	}
+
 }

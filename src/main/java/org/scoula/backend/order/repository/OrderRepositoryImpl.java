@@ -29,4 +29,9 @@ public class OrderRepositoryImpl implements OrderRepository {
 	public List<Order> findByCompanyCode(final String number) {
 		return null;
 	}
+
+	@Override
+	public List<Order> findAll() {
+		return orderJpaRepository.findAll();
+	}
 }

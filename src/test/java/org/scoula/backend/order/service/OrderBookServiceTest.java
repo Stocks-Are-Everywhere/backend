@@ -54,6 +54,9 @@ class OrderBookServiceTest {
 	@Mock
 	private AccountService accountService;
 
+	@Mock
+	private OrderRepository orderRepository;
+
 	@Captor
 	private ArgumentCaptor<TradeHistoryResponse> tradeHistoryCaptor;
 
@@ -66,7 +69,7 @@ class OrderBookServiceTest {
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
 		orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService,
-				accountService);
+				accountService, orderRepository);
 	}
 
 	@Test
@@ -420,7 +423,7 @@ class OrderBookServiceTest {
 
 			// Given
 			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
-					stockHoldingsService, accountService);
+					stockHoldingsService, accountService, orderRepository);
 
 			// 초기 호가창 상태 확인
 			OrderBookResponse initialOrderBook = orderBookService.getBook();
@@ -480,7 +483,7 @@ class OrderBookServiceTest {
 		void testOrderMatching() {
 			// Given
 			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
-					stockHoldingsService, accountService);
+					stockHoldingsService, accountService, orderRepository);
 			doNothing().when(tradeHistoryService).saveTradeHistory(any(TradeHistoryResponse.class));
 
 			// 매도 주문 추가
@@ -514,7 +517,7 @@ class OrderBookServiceTest {
 		void testMarketOrder() {
 			// Given
 			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
-					stockHoldingsService, accountService);
+					stockHoldingsService, accountService, orderRepository);
 			doNothing().when(tradeHistoryService).saveTradeHistory(any(TradeHistoryResponse.class));
 
 			// 지정가 매도 주문 2개 추가 (서로 다른 가격)
@@ -544,7 +547,7 @@ class OrderBookServiceTest {
 		void testMarketOrderNoMatch() {
 			// Given
 			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
-					stockHoldingsService, accountService);
+					stockHoldingsService, accountService, orderRepository);
 
 			// 시장가 매수 주문 (매도 호가가 없음)
 			Order marketBuyOrder = createOrder(Type.BUY, BigDecimal.ZERO, new BigDecimal("5"), OrderStatus.MARKET);
@@ -567,7 +570,7 @@ class OrderBookServiceTest {
 		void testPartialOrderExecution() {
 			// Given
 			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
-					stockHoldingsService, accountService);
+					stockHoldingsService, accountService, orderRepository);
 			doNothing().when(tradeHistoryService).saveTradeHistory(any(TradeHistoryResponse.class));
 
 			// 서로 다른 가격의 매도 주문 2개 추가

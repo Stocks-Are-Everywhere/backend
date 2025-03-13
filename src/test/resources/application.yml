@@ -15,4 +15,25 @@ spring:
     allow-bean-definition-overriding: true
 
 jwt:
-  secret: testSecretKeyForJwtInTestEnvironment
+  secret:
+    key: ${JWT_SECRET_KEY}
+
+google:
+  client:
+    id: ${GOOGLE_CLIENT_ID}
+    secret: ${GOOGLE_CLIENT_SECRET}
+  redirect:
+    uri: ${GOOGLE_REDIRECT_URI}
+  token:
+    uri: ${GOOGLE_TOKEN_URI}
+  userinfo:
+    uri: ${GOOGLE_USER_INFO}
+
+chrome:
+  extension:
+    id: ${CHROME_EXTENSION_ID}
+
+webSocket:
+  server:
+    websocketKey: ${KOREAINVEST_WEBSOCKET_KEY}
+    url: ${KOREAINVEST_API_URL}

@@ -26,10 +26,10 @@ public class CompanyRepositoryImpl implements CompanyRepository {
 	 */
 	@Override
 	public List<Company> findByIsuNmContainingOrIsuAbbrvContainingOrIsuEngNmContainingOrIsuSrtCdContaining(
-		final String query) {
+			final String query) {
 		return companyJpaRepository.findByIsuNmContainingOrIsuAbbrvContainingOrIsuEngNmContainingOrIsuSrtCdContaining(
-			query,
-			query, query, query);
+				query,
+				query, query, query);
 	}
 
 	@Override
@@ -38,8 +38,8 @@ public class CompanyRepositoryImpl implements CompanyRepository {
 	}
 
 	@Override
-	public void save(Company company) {
-		//현재는 사용 X
+	public void save(final Company company) {
+		companyJpaRepository.save(company);
 	}
 
 	@Override

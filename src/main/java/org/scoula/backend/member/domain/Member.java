@@ -47,7 +47,7 @@ public class Member extends BaseEntity {
 	@Enumerated(value = EnumType.STRING)
 	private MemberRoleEnum role;
 
-    @OneToOne(mappedBy = "member", cascade = ALL)
+	@OneToOne(mappedBy = "member", cascade = ALL)
 	private Account account;
 
 	public Member(String googleId, String email, MemberRoleEnum role) {
@@ -57,8 +57,9 @@ public class Member extends BaseEntity {
 		this.role = role != null ? role : MemberRoleEnum.USER;
 	}
 
-	public void createAccount() {
+	public Account createAccount() {
 		this.account = new Account(this);
+		return this.account;
 	}
 
 	public BigDecimal getMemberBalance() {
@@ -68,5 +69,5 @@ public class Member extends BaseEntity {
 	private String parseUsernameFromEmail(String email) {
 		return email.substring(0, email.indexOf('@')); // Extract part before '@'
 	}
-	
+
 }

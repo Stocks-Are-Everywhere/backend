@@ -45,11 +45,11 @@ public class Account extends BaseEntity {
 	@JoinColumn(name = "member_id", nullable = false)
 	private Member member;
 
-    public Account(final Member member) {
-        this.member = member;
-        this.balance = new BigDecimal("100000000");  // 초기 잔액 설정
-        this.reservedBalance = BigDecimal.ZERO;
-    }
+	public Account(final Member member) {
+		this.member = member;
+		this.balance = new BigDecimal("100000000");  // 초기 잔액 설정
+		this.reservedBalance = BigDecimal.ZERO;
+	}
 
 	// 예약 주문 처리
 	public void processReservedOrder(final BigDecimal amount) {
@@ -85,5 +85,9 @@ public class Account extends BaseEntity {
 		if (availableBalance.compareTo(totalPrice) < 0) {
 			throw new InsufficientBalanceException("주문금액이 예수금잔액을 초과합니다.");
 		}
+	}
+
+	public void deposit(final BigDecimal price) {
+		this.balance = this.balance.add(price);
 	}
 }

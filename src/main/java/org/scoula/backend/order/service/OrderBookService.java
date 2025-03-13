@@ -4,10 +4,12 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.Set;
 import java.util.TreeMap;
 
 import org.scoula.backend.member.service.AccountService;
@@ -30,12 +32,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class OrderBookService {
 	// 종목 번호
-
 	private final String companyCode;
 	// 매도 주문: 낮은 가격 우선
 	private final TreeMap<BigDecimal, Queue<Order>> sellOrders = new TreeMap<>();
 	// 매수 주문: 높은 가격 우선
-	private final TreeMap<BigDecimal, Queue<Order>> buyOrders = new TreeMap<>(Collections.reverseOrder());
+	private final TreeMap<BigDecimal, Queue<Order>> buyOrders = new TreeMap<>(
+			Collections.reverseOrder());
 
 	private final TradeHistoryService tradeHistoryService;
 
@@ -43,15 +45,19 @@ public class OrderBookService {
 
 	private final AccountService accountService;
 
+	private final OrderRepository orderRepository;
+
 	/**
 	 * 생성자
 	 */
-	public OrderBookService(final String companyCode, TradeHistoryService tradeHistoryService,
-		StockHoldingsService stockHoldingsService, AccountService accountService) {
+	public OrderBookService(final String companyCode, final TradeHistoryService tradeHistoryService,
+			final StockHoldingsService stockHoldingsService, final AccountService accountService,
+			final OrderRepository orderRepository) {
 		this.companyCode = companyCode;
 		this.tradeHistoryService = tradeHistoryService;
 		this.stockHoldingsService = stockHoldingsService;
 		this.accountService = accountService;
+		this.orderRepository = orderRepository;
 	}
 
 	/**
@@ -194,26 +200,53 @@ public class OrderBookService {
 	}
 
 	/**
-	 * 주문 매칭 처리
+	 * 주문 매칭 처리 - 상태 및 수량 변경 후 DB 업데이트 로직 추가
 	 */
 	private void matchOrders(final Queue<Order> existingOrders, final Order incomingOrder) {
-		while (!existingOrders.isEmpty() && incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
-			final Order existingOrder = existingOrders.peek();
+		// 처리 중에 제외된 주문들을 임시 저장
+		final Queue<Order> skippedOrders = new PriorityQueue<>(
+				Comparator.comparing(Order::getTimestamp)
+						.thenComparing(Order::getTotalQuantity, Comparator.reverseOrder())
+		);
 
-			// 동일 유저 주문 체결 방지
+		// 변경된 주문을 추적하기 위한 Set
+		final Set<Order> orderToUpdate = new HashSet<>();
+
+		while (!existingOrders.isEmpty() && incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
+			final Order existingOrder = existingOrders.poll(); // 큐에서 제거
+
+			// 동일 유저 주문인 경우
 			if (incomingOrder.getAccount().getMember().equals(existingOrder.getAccount().getMember())) {
-				break;
+				// 임시 큐에 저장
+				skippedOrders.offer(existingOrder);
+				continue;
 			}
 
-        	final BigDecimal matchedQuantity = incomingOrder.getRemainingQuantity()
-				.min(existingOrder.getRemainingQuantity());
+			final BigDecimal matchedQuantity = incomingOrder.getRemainingQuantity()
+					.min(existingOrder.getRemainingQuantity());
 			final BigDecimal matchPrice = existingOrder.getPrice(); // 체결 가격은 항상 기존 주문 가격
 
-			// 1. 주문 수량 업데이트
-			incomingOrder.decreaseRemainingQuantity(matchedQuantity);
-			existingOrder.decreaseRemainingQuantity(matchedQuantity);
+			// 0. 매칭 전 값들 기록
+			final BigDecimal originalIncomingRemaining = incomingOrder.getRemainingQuantity();
+			final BigDecimal originalExistingRemaining = existingOrder.getRemainingQuantity();
+			final OrderStatus originalIncomingStatus = incomingOrder.getStatus();
+			final OrderStatus originalExistingStatus = existingOrder.getStatus();
 
-	        // 2. 매수자/매도자 결정
+			// 1. 주문 수량 업데이트
+			incomingOrder.processMatch(matchedQuantity);
+			existingOrder.processMatch(matchedQuantity);
+
+			// 2. 상태나 남은 수량이 변경된 경우 업데이트할 주문 목록에 추가
+			if (originalIncomingStatus != incomingOrder.getStatus()
+					|| originalIncomingRemaining.compareTo(incomingOrder.getRemainingQuantity()) != 0) {
+				orderToUpdate.add(incomingOrder);
+			}
+			if (originalExistingStatus != existingOrder.getStatus()
+					|| originalExistingRemaining.compareTo(existingOrder.getRemainingQuantity()) != 0) {
+				orderToUpdate.add(existingOrder);
+			}
+
+			// 3. 매수자/매도자 결정
 			Order buyOrder, sellOrder;
 			if (incomingOrder.isSellType()) {
 				buyOrder = existingOrder;
@@ -223,24 +256,67 @@ public class OrderBookService {
 				sellOrder = existingOrder;
 			}
 
-			// 3. 거래 처리
+			// 4. 거래 처리
 			processTradeMatch(buyOrder, sellOrder, matchPrice, matchedQuantity);
 
-			// 4. 완전 체결된 주문 제거
-			if (existingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
-				existingOrders.poll();
+			// 5. 완전 체결되지 않은 주문은 다시 큐에 추가
+			if (!existingOrder.isCompletelyFilled()) {
+				existingOrders.offer(existingOrder);
 			}
 		}
+
+		// 6. 임시 큐에 저장했던 건너뛴 주문들을 다시 원래 큐에 추가
+		while (!skippedOrders.isEmpty()) {
+			existingOrders.offer(skippedOrders.poll());
+		}
+
+		// 7. 인커밍 주문의 남은 수량 처리
+		if (!incomingOrder.isCompletelyFilled()) {
+			// 주문 타입에 맞는 주문장에 남은 수량이 있는 주문 추가
+			if (incomingOrder.getType() == Type.BUY) {
+				addToOrderBook(buyOrders, incomingOrder);
+			} else {
+				addToOrderBook(sellOrders, incomingOrder);
+			}
+		}
+
+		// 8. 변경된 주문들을 DB에 업데이트
+		if (!orderToUpdate.isEmpty()) {
+			log.info("변경된 주문 수: {}", orderToUpdate.size());
+
+			orderToUpdate.forEach(order -> {
+				try {
+					final OrderStatus beforeStatus = order.getStatus();
+					final BigDecimal beforeQuantity = order.getRemainingQuantity();
+
+					final Order savedOrder = orderRepository.save(order);
+
+					log.info("주문 DB 업데이트 성공 - 주문ID: {}, 상태: {} -> {}, 남은 수량: {} -> {}",
+							savedOrder.getId(), beforeStatus, savedOrder.getStatus(),
+							beforeQuantity, savedOrder.getRemainingQuantity());
+				} catch (Exception e) {
+					log.error("주문 DB 업데이트 실패 - 주문ID: {}, 오류: {}",
+							order.getId(), e.getMessage(), e);
+				}
+			});
+		} else {
+			log.warn("변경된 주문이 없음 - 매칭은 발생했지만 상태 변경이 없음");
+		}
+
+		// 로깅 추가
+		log.info("매칭 후 주문 상태 - 주문ID: {}, 남은 수량: {}, 상태: {}",
+				incomingOrder.getId(), incomingOrder.getRemainingQuantity(), incomingOrder.getStatus());
 	}
 
-	 // 매수/매도 주문 체결 처리
-	private void processTradeMatch(Order buyOrder, Order sellOrder, BigDecimal price, BigDecimal quantity) {
-		String companyCode = buyOrder.getCompanyCode();
+	// 매수/매도 주문 체결 처리
+	private void processTradeMatch(
+			final Order buyOrder, final Order sellOrder, final BigDecimal price, final BigDecimal quantity) {
+		final String companyCode = buyOrder.getCompanyCode();
 		log.info("매수/매도 주문 체결 처리 - 매수ID: {}, 매도ID: {}, 가격: {}, 수량: {}, 종목: {}",
 				buyOrder.getId(), sellOrder.getId(), price, quantity, companyCode);
 
 		// 1. 거래 내역 저장
-		TradeHistoryResponse tradeHistory = TradeHistoryResponse.builder()
+		final TradeHistoryResponse tradeHistory = TradeHistoryResponse.builder()
 				.companyCode(companyCode)
 				.buyOrderId(buyOrder.getId())
 				.sellOrderId(sellOrder.getId())
