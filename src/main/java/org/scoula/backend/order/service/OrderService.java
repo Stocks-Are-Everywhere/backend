@@ -24,7 +24,7 @@ import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.OrderDto;
 import org.scoula.backend.order.service.exception.CompanyNotFound;
 import org.scoula.backend.order.service.exception.PriceOutOfRangeException;
-import org.scoula.backend.order.service.orderbook.OrderBookService;
+import org.scoula.backend.order.service.orderbook.OrderBook;
 import org.scoula.backend.order.service.validator.OrderValidator;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -38,7 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderService {
 
 	// 종목 코드를 키로 하는 주문들
-	private final ConcurrentHashMap<String, OrderBookService> orderBooks = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<String, OrderBook> orderBooks = new ConcurrentHashMap<>();
 
 	private final SimpMessagingTemplate messagingTemplate;
 
@@ -101,7 +101,7 @@ public class OrderService {
 	}
 
 	public void processOrder(final Order order) {
-		final OrderBookService orderBook = addOrderBook(order.getCompanyCode());
+		final OrderBook orderBook = addOrderBook(order.getCompanyCode());
 		TradeOrder tradeOrderDto = new TradeOrder(
 				order.getId(),
 				order.getCompanyCode(),
@@ -113,7 +113,8 @@ public class OrderService {
 				order.getCreatedDateTime(),
 				order.getAccount()
 		);
-		orderBook.received(tradeOrderDto);
+		List<TradeHistoryResponse> responses = orderBook.received(tradeOrderDto);
+		tradeHistoryService.saveTradeHistory(responses);
 
 		// 웹소켓 보내기
 		final OrderBookResponse response = orderBook.getBook();
@@ -121,9 +122,9 @@ public class OrderService {
 	}
 
 	// 종목별 주문장 생성, 이미 존재할 경우 반환
-	public OrderBookService addOrderBook(final String companyCode) {
+	public OrderBook addOrderBook(final String companyCode) {
 		return orderBooks.computeIfAbsent(companyCode, k ->
-			new OrderBookService(companyCode, tradeHistoryService));
+			new OrderBook(companyCode, tradeHistoryService));
 	}
 
 	// 주문 발생 시 호가창 업데이트 브로드캐스트
@@ -133,19 +134,19 @@ public class OrderService {
 
 	// JSON 종목별 주문장 스냅샷 생성
 	public OrderSnapshotResponse getSnapshot(final String companyCode) {
-		final OrderBookService orderBook = addOrderBook(companyCode);
+		final OrderBook orderBook = addOrderBook(companyCode);
 		return orderBook.getSnapshot();
 	}
 
 	// JSON 종목별 호가창 생성
 	public OrderBookResponse getBook(final String companyCode) {
-		final OrderBookService orderBook = addOrderBook(companyCode);
+		final OrderBook orderBook = addOrderBook(companyCode);
 		return orderBook.getBook();
 	}
 
 	// JSON 종목별 주문 요약 생성
 	public OrderSummaryResponse getSummary(final String companyCode) {
-		final OrderBookService orderBook = addOrderBook(companyCode);
+		final OrderBook orderBook = addOrderBook(companyCode);
 		return orderBook.getSummary();
 	}
 
@@ -156,9 +157,9 @@ public class OrderService {
 	public Map<String, OrderSummaryResponse> getAllOrderSummaries() {
 		Map<String, OrderSummaryResponse> summaries = new HashMap<>();
 
-		for (Map.Entry<String, OrderBookService> entry : orderBooks.entrySet()) {
+		for (Map.Entry<String, OrderBook> entry : orderBooks.entrySet()) {
 			String companyCode = entry.getKey();
-			OrderBookService orderBook = entry.getValue();
+			OrderBook orderBook = entry.getValue();
 			OrderSummaryResponse summary = orderBook.getSummary();
 			summaries.put(companyCode, summary);
 		}

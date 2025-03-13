@@ -1,6 +1,7 @@
 package org.scoula.backend.order.service.orderbook;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +27,7 @@ import lombok.extern.slf4j.Slf4j;
  * 개별 종목의 주문장
  */
 @Slf4j
-public class OrderBookService {
+public class OrderBook {
 	// 종목 번호
 
 	private final String companyCode;
@@ -35,42 +36,38 @@ public class OrderBookService {
 	// 매수 주문: 높은 가격 우선
 	private final ConcurrentNavigableMap<Price, OrderStorage> buyOrders = new ConcurrentSkipListMap<>(Collections.reverseOrder());
 
-	private final TradeHistoryService tradeHistoryService;
-
 	/**
 	 * 생성자
 	 */
-	public OrderBookService(final String companyCode, TradeHistoryService tradeHistoryService) {
+	public OrderBook(final String companyCode, TradeHistoryService tradeHistoryService) {
 		this.companyCode = companyCode;
-		this.tradeHistoryService = tradeHistoryService;
 	}
 
 	/**
 	 * 주문 접수 및 처리
 	 */
-	public void received(final TradeOrder order) {
+	public List<TradeHistoryResponse> received(final TradeOrder order) {
 		if (order.getStatus() == OrderStatus.MARKET) {
-			processMarketOrder(order);
-		} else {
-			processLimitOrder(order);
+			return processMarketOrder(order);
 		}
+		return processLimitOrder(order);
 	}
 
 	/**
 	 * 시장가 주문 처리
 	 */
-	private void processMarketOrder(final TradeOrder order) {
+	private List<TradeHistoryResponse> processMarketOrder(final TradeOrder order) {
 		if (order.getType() == Type.BUY) {
-			matchMarketBuyOrder(order);
-		} else {
-			matchMarketSellOrder(order);
+			return matchMarketBuyOrder(order);
 		}
+		return matchMarketSellOrder(order);
 	}
 
 	/**
 	 * 시장가 매도 주문 처리 - TreeMap 읽기, 제거 발생
 	 */
-	private void matchMarketSellOrder(final TradeOrder sellOrder) {
+	private List<TradeHistoryResponse> matchMarketSellOrder(final TradeOrder sellOrder) {
+		List<TradeHistoryResponse> responses = new ArrayList<>();
 		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매수 주문 찾기
 			Map.Entry<Price, OrderStorage> bestBuy = buyOrders.firstEntry();
@@ -79,7 +76,7 @@ public class OrderBookService {
 			}
 
 			// 주문 매칭 처리
-			matchOrders(bestBuy.getValue(), sellOrder);
+			responses.addAll(matchOrders(bestBuy.getValue(), sellOrder));
 
 			// 매수 큐가 비었으면 제거
 			if (bestBuy.getValue().isEmpty()) {
@@ -88,12 +85,14 @@ public class OrderBookService {
 				}
 			}
 		}
+		return responses;
 	}
 
 	/**
 	 * 시장가 매수 주문 처리 - 읽기, 제거 발생
 	 */
-	private void matchMarketBuyOrder(final TradeOrder buyOrder) {
+	private List<TradeHistoryResponse> matchMarketBuyOrder(final TradeOrder buyOrder) {
+		List<TradeHistoryResponse> responses = new ArrayList<>();
 		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매도 주문 찾기
 			Map.Entry<Price, OrderStorage> bestSell = sellOrders.firstEntry();
@@ -103,7 +102,7 @@ public class OrderBookService {
 			}
 
 			// 주문 매칭 처리
-			matchOrders(bestSell.getValue(), buyOrder);
+			responses.addAll(matchOrders(bestSell.getValue(), buyOrder));
 
 			// 매도 큐가 비었으면 제거
 			if (bestSell.getValue().isEmpty()) {
@@ -112,23 +111,24 @@ public class OrderBookService {
 				}
 			}
 		}
+		return responses;
 	}
 
 	/**
 	 * 지정가 주문 처리
 	 */
-	private void processLimitOrder(final TradeOrder order) {
+	private List<TradeHistoryResponse> processLimitOrder(final TradeOrder order) {
 		if (order.getType() == Type.BUY) {
-			matchBuyOrder(order);
-		} else {
-			matchSellOrder(order);
+			return matchBuyOrder(order);
 		}
+		return matchSellOrder(order);
 	}
 
 	/**
 	 * 지정가 매도 주문 처리 - TreeMap 읽기, 삭제 발생
 	 */
-	private void matchSellOrder(final TradeOrder sellOrder) {
+	private List<TradeHistoryResponse> matchSellOrder(final TradeOrder sellOrder) {
+		List<TradeHistoryResponse> responses = new ArrayList<>();
 		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매도가보다 높거나 같은 매수 주문 찾기
 			Map.Entry<Price, OrderStorage> bestBuy = buyOrders.firstEntry();
@@ -142,19 +142,21 @@ public class OrderBookService {
 			}
 
 			// 주문 매칭 처리
-			matchOrders(bestBuy.getValue(), sellOrder);
+			responses.addAll(matchOrders(bestBuy.getValue(), sellOrder));
 
 			// 매수 큐가 비었으면 제거
 			if (bestBuy.getValue().isEmpty()) {
 				buyOrders.remove(bestBuy.getKey());
 			}
 		}
+		return responses;
 	}
 
 	/**
 	 * 지정가 매수 주문 처리 -- TreeMap 읽기 발생, 제거 발생
 	 */
-	private void matchBuyOrder(final TradeOrder buyOrder) {
+	private List<TradeHistoryResponse> matchBuyOrder(final TradeOrder buyOrder) {
+		List<TradeHistoryResponse> responses = new ArrayList<>();
 		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매수가보다 낮거나 같은 매도 주문 찾기
 			Map.Entry<Price, OrderStorage> bestSell = sellOrders.firstEntry();
@@ -167,26 +169,29 @@ public class OrderBookService {
 			}
 
 			// 주문 매칭 처리
-			matchOrders(bestSell.getValue(), buyOrder);
+			responses.addAll(matchOrders(bestSell.getValue(), buyOrder));
 
 			// 매수 큐가 비었으면 제거
 			if (bestSell.getValue().isEmpty()) {
 				buyOrders.remove(bestSell.getKey());
 			}
 		}
+		return responses;
 	}
 
 	/**
 	 * 주문 매칭 처리 - 변경 발생
 	 */
-	private synchronized void matchOrders(final OrderStorage existingOrders, final TradeOrder incomingOrder) {
+	private synchronized List<TradeHistoryResponse> matchOrders(final OrderStorage existingOrders, final TradeOrder incomingOrder) {
+		List<TradeHistoryResponse> responses = new ArrayList<>();
 		while (!existingOrders.isEmpty() && incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 1. 주문 매칭
 			TradeHistoryResponse response = existingOrders.match(incomingOrder);
 
 			// 2. 매수 / 매도 주문 체결 내역 저장
-			tradeHistoryService.saveTradeHistory(response);
+			responses.add(response);
 		}
+		return responses;
 	}
 
 	/**

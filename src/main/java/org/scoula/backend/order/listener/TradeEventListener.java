@@ -11,6 +11,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
 @RequiredArgsConstructor
@@ -21,8 +22,7 @@ public class TradeEventListener {
     private final OrderRepository orderRepository;
 
     @Async
-    @EventListener
-    @Transactional
+    @TransactionalEventListener
     public void createTradeHistoryEvent(final TradeHistory tradeHistory) {
         // 1. 주문 내역 조회
         Order buyOrder = orderRepository.getById(tradeHistory.getBuyOrderId());

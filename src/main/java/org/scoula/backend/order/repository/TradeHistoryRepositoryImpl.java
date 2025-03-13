@@ -1,5 +1,6 @@
 package org.scoula.backend.order.repository;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.scoula.backend.order.domain.TradeHistory;

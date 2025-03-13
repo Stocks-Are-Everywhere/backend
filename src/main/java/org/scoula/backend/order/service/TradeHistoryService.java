@@ -2,6 +2,7 @@ package org.scoula.backend.order.service;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
@@ -413,10 +414,16 @@ public class TradeHistoryService {
 	/**
 	 * 거래 내역 저장 (일반 사용자)
 	 */
-	public void saveTradeHistory(final TradeHistoryResponse tradeHistoryResponse) {
+	public void saveTradeHistory(final Collection<TradeHistoryResponse> responses) {
 		// 거래 내역 DB 저장
-		TradeHistory tradeHistory = tradeHistoryRepository.save(convertToEntity(tradeHistoryResponse));
+		List<TradeHistory> histories = responses.stream()
+				.map(response -> tradeHistoryRepository.save(convertToEntity(response)))
+				.toList();
 
+		histories.forEach(this::sendTradeHistory);
+	}
+
+	private void sendTradeHistory(TradeHistory tradeHistory) {
 		eventPublisher.publishEvent(tradeHistory);
 
 		// 메모리 저장 및 캔들 업데이트
