@@ -9,6 +9,7 @@ import java.util.NavigableMap;
 import java.util.SortedMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
@@ -34,7 +35,10 @@ public class OrderBook {
 	// 매도 주문: 낮은 가격 우선
 	private final ConcurrentNavigableMap<Price, OrderStorage> sellOrders = new ConcurrentSkipListMap<>();
 	// 매수 주문: 높은 가격 우선
-	private final ConcurrentNavigableMap<Price, OrderStorage> buyOrders = new ConcurrentSkipListMap<>(Collections.reverseOrder());
+	private final ConcurrentNavigableMap<Price, OrderStorage> buyOrders = new ConcurrentSkipListMap<>(
+		Collections.reverseOrder());
+
+	private final ReentrantLock matchLock = new ReentrantLock();
 
 	/**
 	 * 생성자
@@ -75,8 +79,10 @@ public class OrderBook {
 				throw new MatchingException("주문 체결 불가 : " + sellOrder.getRemainingQuantity());
 			}
 
-			// 주문 매칭 처리
+			// 주문 매칭
+			matchLock.lock();
 			responses.addAll(matchOrders(bestBuy.getValue(), sellOrder));
+			matchLock.unlock();
 
 			// 매수 큐가 비었으면 제거
 			if (bestBuy.getValue().isEmpty()) {
@@ -102,7 +108,9 @@ public class OrderBook {
 			}
 
 			// 주문 매칭 처리
+			matchLock.lock();
 			responses.addAll(matchOrders(bestSell.getValue(), buyOrder));
+			matchLock.unlock();
 
 			// 매도 큐가 비었으면 제거
 			if (bestSell.getValue().isEmpty()) {
@@ -142,7 +150,9 @@ public class OrderBook {
 			}
 
 			// 주문 매칭 처리
+			matchLock.lock();
 			responses.addAll(matchOrders(bestBuy.getValue(), sellOrder));
+			matchLock.unlock();
 
 			// 매수 큐가 비었으면 제거
 			if (bestBuy.getValue().isEmpty()) {
@@ -169,7 +179,9 @@ public class OrderBook {
 			}
 
 			// 주문 매칭 처리
+			matchLock.lock();
 			responses.addAll(matchOrders(bestSell.getValue(), buyOrder));
+			matchLock.unlock();
 
 			// 매수 큐가 비었으면 제거
 			if (bestSell.getValue().isEmpty()) {
@@ -182,7 +194,8 @@ public class OrderBook {
 	/**
 	 * 주문 매칭 처리 - 변경 발생
 	 */
-	private synchronized List<TradeHistoryResponse> matchOrders(final OrderStorage existingOrders, final TradeOrder incomingOrder) {
+	private synchronized List<TradeHistoryResponse> matchOrders(final OrderStorage existingOrders,
+		final TradeOrder incomingOrder) {
 		List<TradeHistoryResponse> responses = new ArrayList<>();
 		while (!existingOrders.isEmpty() && incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 1. 주문 매칭
@@ -197,10 +210,11 @@ public class OrderBook {
 	/**
 	 * 주문장에 주문 추가
 	 */
-	private synchronized void addToOrderBook(final NavigableMap<Price, OrderStorage> orderBook, final TradeOrder order) {
+	private synchronized void addToOrderBook(final NavigableMap<Price, OrderStorage> orderBook,
+		final TradeOrder order) {
 		orderBook.computeIfAbsent(
-				new Price(order.getPrice()),
-				k -> new OrderStorage()
+			new Price(order.getPrice()),
+			k -> new OrderStorage()
 		).offer(order);
 	}
 
@@ -218,10 +232,10 @@ public class OrderBook {
 		final List<PriceLevelDto> sellLevels = createAskLevels();
 		final List<PriceLevelDto> buyLevels = createBidLevels();
 		return OrderBookResponse.builder()
-				.companyCode(companyCode)
-				.sellLevels(sellLevels)
-				.buyLevels(buyLevels)
-				.build();
+			.companyCode(companyCode)
+			.sellLevels(sellLevels)
+			.buyLevels(buyLevels)
+			.build();
 	}
 
 	/**
@@ -229,10 +243,10 @@ public class OrderBook {
 	 */
 	private List<PriceLevelDto> createAskLevels() {
 		return this.sellOrders.entrySet().stream()
-				.limit(10)
-				.map(entry -> new PriceLevelDto(
-						entry.getKey().getValue(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
-				).toList();
+			.limit(10)
+			.map(entry -> new PriceLevelDto(
+				entry.getKey().getValue(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
+			).toList();
 	}
 
 	/**
@@ -240,10 +254,10 @@ public class OrderBook {
 	 */
 	private List<PriceLevelDto> createBidLevels() {
 		return this.buyOrders.entrySet().stream()
-				.limit(10)
-				.map(entry -> new PriceLevelDto(
-						entry.getKey().getValue(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
-				).toList();
+			.limit(10)
+			.map(entry -> new PriceLevelDto(
+				entry.getKey().getValue(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
+			).toList();
 	}
 
 	/**
@@ -251,8 +265,8 @@ public class OrderBook {
 	 */
 	private BigDecimal calculateTotalQuantity(OrderStorage orders) {
 		return orders.getElements().stream()
-				.map(TradeOrder::getRemainingQuantity)
-				.reduce(BigDecimal.ZERO, BigDecimal::add);
+			.map(TradeOrder::getRemainingQuantity)
+			.reduce(BigDecimal.ZERO, BigDecimal::add);
 	}
 
 	/**
@@ -260,9 +274,9 @@ public class OrderBook {
 	 */
 	public OrderSummaryResponse getSummary() {
 		return new OrderSummaryResponse(
-				companyCode,
-				getOrderVolumeStats(sellOrders),
-				getOrderVolumeStats(buyOrders)
+			companyCode,
+			getOrderVolumeStats(sellOrders),
+			getOrderVolumeStats(buyOrders)
 		);
 	}
 
@@ -271,7 +285,7 @@ public class OrderBook {
 	 */
 	public Integer getOrderVolumeStats(final SortedMap<Price, OrderStorage> orderMap) {
 		return orderMap.values().stream()
-				.mapToInt(OrderStorage::size)
-				.sum();
+			.mapToInt(OrderStorage::size)
+			.sum();
 	}
 }
