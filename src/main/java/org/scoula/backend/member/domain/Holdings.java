@@ -64,22 +64,21 @@ public class Holdings extends BaseEntity {
 	@JoinColumn(name = "account_id", nullable = false, updatable = false)
 	private Account account;
 
-
 	public void validateEnoughHoldings(final BigDecimal checkQuantity) {
-		validateExistHoldings();
 		if (getAvailableQuantity().compareTo(checkQuantity) < 0) {
 			throw new InsufficientHoldingsException("판매 가능한 보유 주식 수량이 부족합니다.");
 		}
 	}
 
 	public void validateExistHoldings() {
-		if (this.isDeleted()){
+		if (this.isDeleted()) {
 			throw new HoldingsNotFoundException("보유 주식이 없습니다.");
 		}
 		if (this.quantity.compareTo(BigDecimal.ZERO) == 0) {
 			throw new HoldingsNotFoundException("판매 가능한 보유 주식이 없습니다.");
 		}
 	}
+
 	// 예약 주문 처리
 	public void processReservedOrder(final BigDecimal reservedQuantity) {
 		this.reservedQuantity = this.reservedQuantity.add(reservedQuantity);
@@ -98,7 +97,7 @@ public class Holdings extends BaseEntity {
 	}
 
 	private void updateBuyHoldings(final BigDecimal updatePrice, final BigDecimal updateQuantity) {
-		if (this.isDeleted()){
+		if (this.isDeleted()) {
 			restore();
 		}
 		this.quantity = this.quantity.add(updateQuantity);
@@ -110,9 +109,12 @@ public class Holdings extends BaseEntity {
 	// 새로운 총 매수 금액 = 기존 총 매수 금액 − (평단가×매도 수량)
 	// 손익 = (매도가 - 평단가) × 매도 수량
 	private void updateSellHoldings(final BigDecimal updateQuantity) {
-		validateExistHoldings();
+		// validateExistHoldings();
 		this.quantity = this.quantity.subtract(updateQuantity);
 		this.totalPurchasePrice = this.totalPurchasePrice.subtract(updateQuantity.multiply(this.averagePrice));
+
+		// 예약 수량 감소 (체결된 만큼 예약 수량에서 제거)
+		this.reservedQuantity = this.reservedQuantity.subtract(updateQuantity);
 
 		if (this.quantity.compareTo(BigDecimal.ZERO) == 0) {
 			this.softDelete(LocalDateTime.now());

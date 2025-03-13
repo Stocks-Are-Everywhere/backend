@@ -21,30 +21,31 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class StockHoldingsService {
-    private final AccountRepository accountRepository;
-    private final HoldingsRepository holdingsRepository;
 
-    public void updateHoldingsAfterTrade(Type type, Account account, String companyCode,
-                                 BigDecimal price, BigDecimal quantity) {
-        Holdings holdings =  getOrCreateHoldings(account.getId(), companyCode);
+    private final AccountRepositoryImpl accountRepository;
+    private final HoldingsRepositoryImpl holdingsRepository;
+
+    public void updateHoldingsAfterTrade(final Type type, final Account account, final String companyCode,
+                                         final BigDecimal price, final BigDecimal quantity) {
+        final Holdings holdings = getOrCreateHoldings(account.getId(), companyCode);
         holdings.updateHoldings(type, price, quantity);
         saveHoldings(holdings);
     }
 
-    private void saveHoldings(final Holdings holdings) {
+    public void saveHoldings(final Holdings holdings) {
         holdingsRepository.save(holdings);
     }
 
-    private Holdings getOrCreateHoldings(final Long accountId, final String companyCode) {
+    public Holdings getOrCreateHoldings(final Long accountId, final String companyCode) {
         final Account account = accountRepository.getById(accountId);
         return holdingsRepository.findByAccountIdAndCompanyCode(account.getId(), companyCode)
-            .orElseGet(() -> Holdings.builder()
-                .account(account)
-                .companyCode(companyCode)
-                .quantity(BigDecimal.ZERO)
-                .reservedQuantity(BigDecimal.ZERO)
-                .averagePrice(BigDecimal.ZERO)
-                .totalPurchasePrice(BigDecimal.ZERO)
-                .build());
+                .orElseGet(() -> Holdings.builder()
+                        .account(account)
+                        .companyCode(companyCode)
+                        .quantity(BigDecimal.ZERO)
+                        .reservedQuantity(BigDecimal.ZERO)
+                        .averagePrice(BigDecimal.ZERO)
+                        .totalPurchasePrice(BigDecimal.ZERO)
+                        .build());
     }
 }

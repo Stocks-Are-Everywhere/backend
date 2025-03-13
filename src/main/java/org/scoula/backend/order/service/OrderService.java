@@ -12,6 +12,7 @@ import org.scoula.backend.member.exception.HoldingsNotFoundException;
 import org.scoula.backend.member.repository.impls.HoldingsRepositoryImpl;
 import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.service.reposiotry.CompanyRepository;
+import org.scoula.backend.member.service.reposiotry.HoldingsRepository;
 import org.scoula.backend.member.service.reposiotry.MemberRepository;
 import org.scoula.backend.order.controller.request.OrderRequest;
 import org.scoula.backend.order.controller.response.OrderBookResponse;
@@ -50,9 +51,9 @@ public class OrderService {
 
 	private final OrderRepository orderRepository;
 
-	private final HoldingsRepositoryImpl holdingsRepository;
+	private final HoldingsRepository holdingsRepository;
 
-	public void placeOrder(final OrderRequest request, final String username) {
+	public Order placeOrder(final OrderRequest request, final String username) {
 		// 지정가 주문 가격 견적 유효성 검증
 		final BigDecimal price = request.price();
 		final OrderValidator validator = OrderValidator.getUnitByPrice(price);
@@ -66,6 +67,7 @@ public class OrderService {
 
 		// 주문 처리
 		processOrder(order);
+		return order;
 	}
 
 	// 종가 기준 가격 검증

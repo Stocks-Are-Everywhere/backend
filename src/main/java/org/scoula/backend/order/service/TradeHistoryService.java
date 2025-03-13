@@ -14,10 +14,14 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
+import org.scoula.backend.member.service.AccountService;
+import org.scoula.backend.member.service.StockHoldingsService;
 import org.scoula.backend.order.controller.response.KisStockResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
+import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.TimeFrame;
 import org.scoula.backend.order.domain.TradeHistory;
+import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.CandleDto;
 import org.scoula.backend.order.dto.ChartResponseDto;
 import org.scoula.backend.order.dto.ChartUpdateDto;
@@ -28,6 +32,7 @@ import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 거래 내역 관리 서비스
@@ -39,6 +44,9 @@ public class TradeHistoryService {
 	private final TradeHistoryRepository tradeHistoryRepository;
 	private final SimpMessagingTemplate messagingTemplate;
 	private final ApplicationEventPublisher eventPublisher;
+	private final OrderRepository orderRepository;
+	private final AccountService accountService;
+	private final StockHoldingsService stockHoldingsService;
 
 	// 상수 정의
 	private static final int MAX_TRADE_HISTORY = 1000; // 종목당 최대 보관 거래 수
@@ -414,6 +422,7 @@ public class TradeHistoryService {
 	/**
 	 * 거래 내역 저장 (일반 사용자)
 	 */
+	@Transactional
 	public void saveTradeHistory(final Collection<TradeHistoryResponse> responses) {
 		// 거래 내역 DB 저장
 		List<TradeHistory> histories = responses.stream()
@@ -424,8 +433,23 @@ public class TradeHistoryService {
 	}
 
 	private void sendTradeHistory(TradeHistory tradeHistory) {
-		eventPublisher.publishEvent(tradeHistory);
+		// 1. 주문 내역 조회
+		Order buyOrder = orderRepository.getById(tradeHistory.getBuyOrderId());
+		Order sellOrder = orderRepository.getById(tradeHistory.getSellOrderId());
 
+		buyOrder.decreaseRemainingQuantity(tradeHistory.getQuantity());
+		sellOrder.decreaseRemainingQuantity(tradeHistory.getQuantity());
+
+		orderRepository.save(buyOrder);
+		orderRepository.save(sellOrder);
+
+		// 2. 계좌 잔액 처리
+		accountService.updateAccountAfterTrade(buyOrder.getMemberId(), Type.BUY, tradeHistory.getPrice(), tradeHistory.getQuantity());
+		accountService.updateAccountAfterTrade(sellOrder.getMemberId(), Type.SELL, tradeHistory.getPrice(), tradeHistory.getQuantity());
+
+		// 3. 보유 주식 처리
+		stockHoldingsService.updateHoldingsAfterTrade(Type.BUY, buyOrder.getAccount(), tradeHistory.getCompanyCode(), tradeHistory.getPrice(), tradeHistory.getQuantity());
+		stockHoldingsService.updateHoldingsAfterTrade(Type.SELL, sellOrder.getAccount(), tradeHistory.getCompanyCode(), tradeHistory.getPrice(), tradeHistory.getQuantity());
 		// 메모리 저장 및 캔들 업데이트
 		storeTradeHistory(tradeHistory);
 		updateAllTimeFrameCandles(tradeHistory);
