@@ -21,6 +21,11 @@ public class OrderRepositoryImpl implements OrderRepository {
 	}
 
 	@Override
+	public List<Order> saveAll(final List<Order> orders) {
+		return orderJpaRepository.saveAll(orders);
+	}
+
+	@Override
 	public Optional<Order> findById(final Long id) {
 		return orderJpaRepository.findById(id);
 	}
@@ -33,5 +38,10 @@ public class OrderRepositoryImpl implements OrderRepository {
 	@Override
 	public List<Order> findAll() {
 		return orderJpaRepository.findAll();
+	}
+
+	@Override
+	public Boolean existsById(final Long id) {
+		return orderJpaRepository.existsById(id);
 	}
 }

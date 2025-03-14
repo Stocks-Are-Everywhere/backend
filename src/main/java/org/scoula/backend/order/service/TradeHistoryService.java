@@ -1,6 +1,5 @@
 package org.scoula.backend.order.service;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -9,8 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executor;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
@@ -21,7 +22,7 @@ import org.scoula.backend.order.domain.TradeHistory;
 import org.scoula.backend.order.dto.CandleDto;
 import org.scoula.backend.order.dto.ChartResponseDto;
 import org.scoula.backend.order.dto.ChartUpdateDto;
-import org.scoula.backend.order.repository.TradeHistoryRepositoryImpl;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -37,8 +38,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class TradeHistoryService {
 	private final TradeHistoryRepository tradeHistoryRepository;
+
 	private final OrderRepository orderRepository;
+
 	private final SimpMessagingTemplate messagingTemplate;
+
+	@Qualifier("supportTasksExecutor")
+	private final Executor supportTasksExecutor;
 
 	// 상수 정의
 	private static final int MAX_TRADE_HISTORY = 1000; // 종목당 최대 보관 거래 수
@@ -233,7 +239,7 @@ public class TradeHistoryService {
 	/**
 	 * 캔들 시간 계산 (타임프레임 단위로 내림)
 	 */
-	private Long calculateCandleTime(Long timeInSeconds, Long timeFrameSeconds) {
+	private Long calculateCandleTime(final Long timeInSeconds, final Long timeFrameSeconds) {
 		return timeInSeconds - (timeInSeconds % timeFrameSeconds);
 	}
 
@@ -241,7 +247,8 @@ public class TradeHistoryService {
 	 * 빈 캔들 채우기
 	 */
 	private void fillEmptyCandles(
-			List<CandleDto> candles, Long fromTime, Long toTime, Long timeFrameSeconds, Double lastPrice) {
+			final List<CandleDto> candles, final Long fromTime, final Long toTime, final Long timeFrameSeconds,
+			final Double lastPrice) {
 		// 인자 유효성 검증 강화
 		if (lastPrice == null || fromTime == null || toTime == null) {
 			log.warn("빈 캔들을 채우는데 유효하지 않은 인자: fromTime={}, toTime={}, lastPrice={}",
@@ -272,7 +279,8 @@ public class TradeHistoryService {
 	/**
 	 * CandleDto 생성 (null 값 방지)
 	 */
-	private CandleDto createCandleDto(Long time, Double open, Double high, Double low, Double close, Integer volume) {
+	private CandleDto createCandleDto(Long time, final Double open, final Double high, final Double low,
+			final Double close, final Integer volume) {
 		// 시간 값이 유효하지 않은 경우 로그 남기고 현재 시간으로 대체
 		if (time == null || time <= 0) {
 			log.warn("유효하지 않은 candle 시간값: {}, 현재 시간으로 대체합니다.", time);
@@ -543,46 +551,49 @@ public class TradeHistoryService {
 	 * 차트 업데이트 전송
 	 */
 	private void sendChartUpdates(final TradeHistory tradeHistory) {
-		final String companyCode = tradeHistory.getCompanyCode();
-		final Double price = tradeHistory.getPrice() != null ? tradeHistory.getPrice().doubleValue() : DEFAULT_PRICE;
-		final Integer volume = tradeHistory.getQuantity() != null ? tradeHistory.getQuantity().intValue() : 0;
+		CompletableFuture.runAsync(() -> {
+			final String companyCode = tradeHistory.getCompanyCode();
+			final Double price =
+					tradeHistory.getPrice() != null ? tradeHistory.getPrice().doubleValue() : DEFAULT_PRICE;
+			final Integer volume = tradeHistory.getQuantity() != null ? tradeHistory.getQuantity().intValue() : 0;
 
-		// 기본 업데이트 전송
-		final ChartUpdateDto basicUpdateDto = ChartUpdateDto.builder()
-				.price(price)
-				.volume(volume)
-				.build();
-		messagingTemplate.convertAndSend("/topic/chart/" + companyCode, basicUpdateDto);
+			// 기본 업데이트 전송
+			final ChartUpdateDto basicUpdateDto = ChartUpdateDto.builder()
+					.price(price)
+					.volume(volume)
+					.build();
+			messagingTemplate.convertAndSend("/topic/chart/" + companyCode, basicUpdateDto);
 
-		// 회사별 락 획득 (읽기 락)
-		ReentrantReadWriteLock lock = companyLocks.computeIfAbsent(companyCode, k -> new ReentrantReadWriteLock());
-		lock.readLock().lock();
+			// 회사별 락 획득 (읽기 락)
+			ReentrantReadWriteLock lock = companyLocks.computeIfAbsent(companyCode, k -> new ReentrantReadWriteLock());
+			lock.readLock().lock();
 
-		try {
-			// 각 타임프레임별 업데이트 전송
-			final Map<TimeFrame, List<CandleDto>> companyCodeCandleMap = timeFrameCandleMap.get(companyCode);
-			if (companyCodeCandleMap != null) {
-				for (TimeFrame timeFrame : TimeFrame.values()) {
-					final List<CandleDto> candles = companyCodeCandleMap.get(timeFrame);
-					if (candles != null && !candles.isEmpty()) {
-						final CandleDto latestCandle = candles.get(candles.size() - 1);
-						if (latestCandle != null) {
-							final ChartUpdateDto timeframeUpdateDto = ChartUpdateDto.builder()
-									.price(latestCandle.close())
-									.volume(latestCandle.volume())
-									.timeCode(timeFrame.getTimeCode())
-									.build();
+			try {
+				// 각 타임프레임별 업데이트 전송
+				final Map<TimeFrame, List<CandleDto>> companyCodeCandleMap = timeFrameCandleMap.get(companyCode);
+				if (companyCodeCandleMap != null) {
+					for (TimeFrame timeFrame : TimeFrame.values()) {
+						final List<CandleDto> candles = companyCodeCandleMap.get(timeFrame);
+						if (candles != null && !candles.isEmpty()) {
+							final CandleDto latestCandle = candles.get(candles.size() - 1);
+							if (latestCandle != null) {
+								final ChartUpdateDto timeframeUpdateDto = ChartUpdateDto.builder()
+										.price(latestCandle.close())
+										.volume(latestCandle.volume())
+										.timeCode(timeFrame.getTimeCode())
+										.build();
 
-							messagingTemplate.convertAndSend(
-									"/topic/chart/" + companyCode + "/" + timeFrame.getTimeCode(),
-									timeframeUpdateDto);
+								messagingTemplate.convertAndSend(
+										"/topic/chart/" + companyCode + "/" + timeFrame.getTimeCode(),
+										timeframeUpdateDto);
+							}
 						}
 					}
 				}
+			} finally {
+				lock.readLock().unlock();
 			}
-		} finally {
-			lock.readLock().unlock();
-		}
+		}, supportTasksExecutor);
 	}
 
 	/**
@@ -643,7 +654,7 @@ public class TradeHistoryService {
 	/**
 	 * 종목과 타임프레임에 맞는 캔들 데이터 조회
 	 */
-	private List<CandleDto> getTimeFrameCandles(String companyCode, TimeFrame timeFrame) {
+	private List<CandleDto> getTimeFrameCandles(final String companyCode, final TimeFrame timeFrame) {
 		final Map<TimeFrame, List<CandleDto>> companyCodeCandleMap = timeFrameCandleMap.get(companyCode);
 		if (companyCodeCandleMap == null) {
 			return new ArrayList<>();
@@ -656,7 +667,7 @@ public class TradeHistoryService {
 	/**
 	 * 유효한 캔들 데이터만 필터링, 정렬 후 변환
 	 */
-	private List<CandleDto> processAndConvertValidCandles(List<CandleDto> candles) {
+	private List<CandleDto> processAndConvertValidCandles(final List<CandleDto> candles) {
 		// 유효한 캔들만 필터링
 		List<CandleDto> validCandles = new ArrayList<>(candles.stream()
 				.filter(candle -> candle != null && candle.time() != null && candle.time() > 0)
@@ -685,7 +696,7 @@ public class TradeHistoryService {
 	/**
 	 * 기본 캔들 생성
 	 */
-	private CandleDto createDefaultCandle(TimeFrame timeFrame) {
+	private CandleDto createDefaultCandle(final TimeFrame timeFrame) {
 		Long now = Instant.now().getEpochSecond();
 		Long timeFrameSeconds = timeFrame.getSeconds();
 		Long currentCandleTime = calculateCandleTime(now, timeFrameSeconds);
@@ -712,7 +723,7 @@ public class TradeHistoryService {
 	/**
 	 * DTO를 엔티티로 변환
 	 */
-	private TradeHistory convertToEntity(TradeHistoryResponse dto) {
+	private TradeHistory convertToEntity(final TradeHistoryResponse dto) {
 		return TradeHistory.builder()
 				.id(dto.id())
 				.companyCode(dto.companyCode())
@@ -727,7 +738,7 @@ public class TradeHistoryService {
 	/**
 	 * 엔티티를 DTO로 변환
 	 */
-	private TradeHistoryResponse convertToDto(TradeHistory entity) {
+	private TradeHistoryResponse convertToDto(final TradeHistory entity) {
 		return TradeHistoryResponse.builder()
 				.id(entity.getId())
 				.companyCode(entity.getCompanyCode())
@@ -742,7 +753,7 @@ public class TradeHistoryService {
 	/**
 	 * 차트 데이터 로깅
 	 */
-	private void logChartData(String companyCode, TimeFrame timeFrame, List<CandleDto> candles) {
+	private void logChartData(final String companyCode, final TimeFrame timeFrame, final List<CandleDto> candles) {
 		log.debug("차트 데이터 반환: 종목={}, 타임프레임={}, 캔들 수={}, 첫 캔들 시간={}, 마지막 캔들 시간={}",
 				companyCode, timeFrame.getTimeCode(), candles.size(),
 				candles.isEmpty() ? "없음" : Instant.ofEpochSecond(candles.get(0).time()),

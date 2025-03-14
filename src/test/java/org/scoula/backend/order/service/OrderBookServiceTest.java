@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -42,6 +43,9 @@ import org.springframework.transaction.annotation.Transactional;
 @ActiveProfiles("test")
 class OrderBookServiceTest {
 
+	@Mock
+	private Executor dbOperationsExecutor;
+
 	@InjectMocks
 	private OrderBookService orderBookService;
 
@@ -69,7 +73,7 @@ class OrderBookServiceTest {
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
 		orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService, stockHoldingsService,
-				accountService, orderRepository);
+				accountService, orderRepository, dbOperationsExecutor);
 	}
 
 	@Test
@@ -423,7 +427,7 @@ class OrderBookServiceTest {
 
 			// Given
 			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
-					stockHoldingsService, accountService, orderRepository);
+					stockHoldingsService, accountService, orderRepository, dbOperationsExecutor);
 
 			// 초기 호가창 상태 확인
 			OrderBookResponse initialOrderBook = orderBookService.getBook();
@@ -483,7 +487,7 @@ class OrderBookServiceTest {
 		void testOrderMatching() {
 			// Given
 			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
-					stockHoldingsService, accountService, orderRepository);
+					stockHoldingsService, accountService, orderRepository, dbOperationsExecutor);
 			doNothing().when(tradeHistoryService).saveTradeHistory(any(TradeHistoryResponse.class));
 
 			// 매도 주문 추가
@@ -517,7 +521,7 @@ class OrderBookServiceTest {
 		void testMarketOrder() {
 			// Given
 			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
-					stockHoldingsService, accountService, orderRepository);
+					stockHoldingsService, accountService, orderRepository, dbOperationsExecutor);
 			doNothing().when(tradeHistoryService).saveTradeHistory(any(TradeHistoryResponse.class));
 
 			// 지정가 매도 주문 2개 추가 (서로 다른 가격)
@@ -547,7 +551,7 @@ class OrderBookServiceTest {
 		void testMarketOrderNoMatch() {
 			// Given
 			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
-					stockHoldingsService, accountService, orderRepository);
+					stockHoldingsService, accountService, orderRepository, dbOperationsExecutor);
 
 			// 시장가 매수 주문 (매도 호가가 없음)
 			Order marketBuyOrder = createOrder(Type.BUY, BigDecimal.ZERO, new BigDecimal("5"), OrderStatus.MARKET);
@@ -570,7 +574,7 @@ class OrderBookServiceTest {
 		void testPartialOrderExecution() {
 			// Given
 			OrderBookService orderBookService = new OrderBookService(COMPANY_CODE, tradeHistoryService,
-					stockHoldingsService, accountService, orderRepository);
+					stockHoldingsService, accountService, orderRepository, dbOperationsExecutor);
 			doNothing().when(tradeHistoryService).saveTradeHistory(any(TradeHistoryResponse.class));
 
 			// 서로 다른 가격의 매도 주문 2개 추가

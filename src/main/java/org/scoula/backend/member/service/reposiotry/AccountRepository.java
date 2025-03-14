@@ -7,4 +7,8 @@ public interface AccountRepository {
 	Account getByMemberId(final Long memberId);
 
 	Account save(final Account account);
+
+	Account getById(final Long id);
+
+	Account getReferenceById(final Long id);
 }

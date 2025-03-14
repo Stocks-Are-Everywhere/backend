@@ -47,6 +47,9 @@ dependencies {
     // Swagger-ui
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'
 
+    // rocksDB: hugh
+    implementation 'org.rocksdb:rocksdbjni:7.10.2'
+
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     compileOnly 'org.projectlombok:lombok'
@@ -129,4 +132,8 @@ tasks.named('test') {
     useJUnitPlatform()
     // test 수행 이후 리포트 생성
     finalizedBy jacocoTestReport
+}
+
+compileJava {
+    options.compilerArgs += ['-parameters']
 }

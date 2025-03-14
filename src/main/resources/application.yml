@@ -8,15 +8,22 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
-      max-lifetime: 180000 # 3분 (MySQL wait_timeout보다 짧게 설정)
-      idle-timeout: 10000  # 10초 (유휴 상태에서 연결을 유지하는 시간)
-      validation-timeout: 3000 # 3초 (유효성 검사 대기 시간)
-      connection-timeout: 30000 # 30초 (새 연결 생성 대기 시간)
-      connection-init-sql: SET SESSION wait_timeout=600
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      max-lifetime: 600000
+      leak-detection-threshold: 30000
+      auto-commit: true
 
+
+      # max-lifetime: 180000 # 3분 (MySQL wait_timeout보다 짧게 설정)
+      # idle-timeout: 10000  # 10초 (유휴 상태에서 연결을 유지하는 시간)
+      # validation-timeout: 3000 # 3초 (유효성 검사 대기 시간)
+      # connection-timeout: 3000 # 30초 (새 연결 생성 대기 시간)
+      # connection-init-sql: SET SESSION wait_timeout=600
 
   jpa:
-    hibernate.ddl-auto: create
+    hibernate.ddl-auto: update
     show-sql: true
     properties:
       hibernate.criteria.literal_handling_mode: BIND

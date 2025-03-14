@@ -11,7 +11,11 @@ public interface OrderRepository {
 
 	Optional<Order> findById(final Long id);
 
+	Boolean existsById(final Long id);
+
 	List<Order> findByCompanyCode(final String number);
 
 	List<Order> findAll();
+
+	List<Order> saveAll(final List<Order> orders);
 }
