@@ -9,7 +9,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.member.domain.Holdings;
 import org.scoula.backend.member.exception.HoldingsNotFoundException;
-import org.scoula.backend.member.repository.impls.HoldingsRepositoryImpl;
 import org.scoula.backend.member.domain.Company;
 import org.scoula.backend.member.service.reposiotry.CompanyRepository;
 import org.scoula.backend.member.service.reposiotry.HoldingsRepository;
@@ -126,7 +125,7 @@ public class OrderService {
 	// 종목별 주문장 생성, 이미 존재할 경우 반환
 	public OrderBook addOrderBook(final String companyCode) {
 		return orderBooks.computeIfAbsent(companyCode, k ->
-			new OrderBook(companyCode, tradeHistoryService));
+			new OrderBook(companyCode));
 	}
 
 	// 주문 발생 시 호가창 업데이트 브로드캐스트
