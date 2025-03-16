@@ -4,13 +4,12 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.Queue;
 import java.util.Set;
-import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 import org.scoula.backend.member.service.AccountService;
 import org.scoula.backend.member.service.StockHoldingsService;
@@ -23,6 +22,7 @@ import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.PriceLevelDto;
 import org.scoula.backend.order.service.exception.MatchingException;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,9 +34,9 @@ public class OrderBookService {
 	// 종목 번호
 	private final String companyCode;
 	// 매도 주문: 낮은 가격 우선
-	private final TreeMap<BigDecimal, Queue<Order>> sellOrders = new TreeMap<>();
+	private final ConcurrentSkipListMap<BigDecimal, ConcurrentSkipListSet<Order>> sellOrders = new ConcurrentSkipListMap<>();
 	// 매수 주문: 높은 가격 우선
-	private final TreeMap<BigDecimal, Queue<Order>> buyOrders = new TreeMap<>(
+	private final ConcurrentSkipListMap<BigDecimal, ConcurrentSkipListSet<Order>> buyOrders = new ConcurrentSkipListMap<>(
 			Collections.reverseOrder());
 
 	private final TradeHistoryService tradeHistoryService;
@@ -106,7 +106,7 @@ public class OrderBookService {
 		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			log.info("매도 메서드 진입");
 			// 매도가보다 높거나 같은 매수 주문 찾기
-			Map.Entry<BigDecimal, Queue<Order>> bestBuy = buyOrders.firstEntry();
+			Map.Entry<BigDecimal, ConcurrentSkipListSet<Order>> bestBuy = buyOrders.firstEntry();
 
 			if (bestBuy == null || bestBuy.getKey().compareTo(sellOrder.getPrice()) < 0) {
 				// 매칭되는 매수 주문이 없으면 주문장에 추가
@@ -132,7 +132,7 @@ public class OrderBookService {
 		log.info("시장가 매도 메서드 진입");
 		while (sellOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매수 주문 찾기
-			Map.Entry<BigDecimal, Queue<Order>> bestBuy = buyOrders.firstEntry();
+			Map.Entry<BigDecimal, ConcurrentSkipListSet<Order>> bestBuy = buyOrders.firstEntry();
 			if (bestBuy == null) {
 				log.info("남은 시장가 매수 삭제");
 				throw new MatchingException("주문 체결 불가 : " + sellOrder.getRemainingQuantity());
@@ -156,7 +156,7 @@ public class OrderBookService {
 		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			log.info("매수 메서드 진입");
 			// 매수가보다 낮거나 같은 매도 주문 찾기
-			Map.Entry<BigDecimal, Queue<Order>> bestSell = sellOrders.firstEntry();
+			Map.Entry<BigDecimal, ConcurrentSkipListSet<Order>> bestSell = sellOrders.firstEntry();
 
 			if (bestSell == null || bestSell.getKey().compareTo(buyOrder.getPrice()) > 0) {
 				log.info("매수 초기값 할당 조건문 진입");
@@ -181,7 +181,7 @@ public class OrderBookService {
 		log.info("시장가 매수 메서드 진입");
 		while (buyOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
 			// 매도 주문 찾기
-			Map.Entry<BigDecimal, Queue<Order>> bestSell = sellOrders.firstEntry();
+			Map.Entry<BigDecimal, ConcurrentSkipListSet<Order>> bestSell = sellOrders.firstEntry();
 
 			if (bestSell == null) {
 				log.info("남은 시장가 매도 삭제");
@@ -202,23 +202,27 @@ public class OrderBookService {
 	/**
 	 * 주문 매칭 처리 - 상태 및 수량 변경 후 DB 업데이트 로직 추가
 	 */
-	private void matchOrders(final Queue<Order> existingOrders, final Order incomingOrder) {
+	private void matchOrders(final ConcurrentSkipListSet<Order> existingOrders, final Order incomingOrder) {
 		// 처리 중에 제외된 주문들을 임시 저장
-		final Queue<Order> skippedOrders = new PriorityQueue<>(
+		final ConcurrentSkipListSet<Order> skippedOrders = new ConcurrentSkipListSet<>(
 				Comparator.comparing(Order::getTimestamp)
 						.thenComparing(Order::getTotalQuantity, Comparator.reverseOrder())
+						.thenComparing(Order::getId)
 		);
 
 		// 변경된 주문을 추적하기 위한 Set
-		final Set<Order> orderToUpdate = new HashSet<>();
+		final Set<Order> orderToUpdate = ConcurrentHashMap.newKeySet();
 
 		while (!existingOrders.isEmpty() && incomingOrder.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
-			final Order existingOrder = existingOrders.poll(); // 큐에서 제거
+			// 가장 우선순위가 높은 주문 가져오기 (첫 번째 요소)
+			final Order existingOrder = existingOrders.first();
+			// Set에서 제거
+			existingOrders.remove(existingOrder);
 
 			// 동일 유저 주문인 경우
 			if (incomingOrder.getAccount().getMember().equals(existingOrder.getAccount().getMember())) {
 				// 임시 큐에 저장
-				skippedOrders.offer(existingOrder);
+				skippedOrders.add(existingOrder);
 				continue;
 			}
 
@@ -261,13 +265,15 @@ public class OrderBookService {
 
 			// 5. 완전 체결되지 않은 주문은 다시 큐에 추가
 			if (!existingOrder.isCompletelyFilled()) {
-				existingOrders.offer(existingOrder);
+				existingOrders.add(existingOrder);
 			}
 		}
 
 		// 6. 임시 큐에 저장했던 건너뛴 주문들을 다시 원래 큐에 추가
 		while (!skippedOrders.isEmpty()) {
-			existingOrders.offer(skippedOrders.poll());
+			final Order skippedOrder = skippedOrders.first();
+			skippedOrders.remove(skippedOrder);
+			existingOrders.add(skippedOrder);
 		}
 
 		// 7. 인커밍 주문의 남은 수량 처리
@@ -280,25 +286,9 @@ public class OrderBookService {
 			}
 		}
 
-		// 8. 변경된 주문들을 DB에 업데이트
+		// 8. 변경된 주문들 처리 - 오버라이드 가능한 메서드 호출
 		if (!orderToUpdate.isEmpty()) {
-			log.info("변경된 주문 수: {}", orderToUpdate.size());
-
-			orderToUpdate.forEach(order -> {
-				try {
-					final OrderStatus beforeStatus = order.getStatus();
-					final BigDecimal beforeQuantity = order.getRemainingQuantity();
-
-					final Order savedOrder = orderRepository.save(order);
-
-					log.info("주문 DB 업데이트 성공 - 주문ID: {}, 상태: {} -> {}, 남은 수량: {} -> {}",
-							savedOrder.getId(), beforeStatus, savedOrder.getStatus(),
-							beforeQuantity, savedOrder.getRemainingQuantity());
-				} catch (Exception e) {
-					log.error("주문 DB 업데이트 실패 - 주문ID: {}, 오류: {}",
-							order.getId(), e.getMessage(), e);
-				}
-			});
+			matchOrders(orderToUpdate);
 		} else {
 			log.warn("변경된 주문이 없음 - 매칭은 발생했지만 상태 변경이 없음");
 		}
@@ -306,6 +296,31 @@ public class OrderBookService {
 		// 로깅 추가
 		log.info("매칭 후 주문 상태 - 주문ID: {}, 남은 수량: {}, 상태: {}",
 				incomingOrder.getId(), incomingOrder.getRemainingQuantity(), incomingOrder.getStatus());
+	}
+
+	/**
+	 * 주문 매칭 후 업데이트 처리 - 하위 클래스에서 오버라이드 가능
+	 * 기본 구현은 데이터베이스에 즉시 저장
+	 */
+	@Transactional
+	protected void matchOrders(final Set<Order> orderToUpdate) {
+		log.info("변경된 주문 수: {}", orderToUpdate.size());
+
+		orderToUpdate.forEach(order -> {
+			try {
+				final OrderStatus beforeStatus = order.getStatus();
+				final BigDecimal beforeQuantity = order.getRemainingQuantity();
+
+				final Order savedOrder = orderRepository.save(order);
+
+				log.info("주문 DB 업데이트 성공 - 주문ID: {}, 상태: {} -> {}, 남은 수량: {} -> {}",
+						savedOrder.getId(), beforeStatus, savedOrder.getStatus(),
+						beforeQuantity, savedOrder.getRemainingQuantity());
+			} catch (Exception e) {
+				log.error("주문 DB 업데이트 실패 - 주문ID: {}, 오류: {}",
+						order.getId(), e.getMessage(), e);
+			}
+		});
 	}
 
 	// 매수/매도 주문 체결 처리
@@ -338,7 +353,8 @@ public class OrderBookService {
 	/**
 	 * 주문장에 주문 추가
 	 */
-	private void addToOrderBook(final TreeMap<BigDecimal, Queue<Order>> orderBook, final Order order) {
+	private void addToOrderBook(final ConcurrentSkipListMap<BigDecimal, ConcurrentSkipListSet<Order>> orderBook,
+			final Order order) {
 		if (order.getPrice().compareTo(BigDecimal.ZERO) == 0) {
 			log.warn("시장가 주문은 주문장에 추가할 수 없습니다: {}", order);
 			return;
@@ -346,11 +362,12 @@ public class OrderBookService {
 
 		orderBook.computeIfAbsent(
 				order.getPrice(),
-				k -> new PriorityQueue<>(
+				k -> new ConcurrentSkipListSet<>(
 						Comparator.comparing(Order::getTimestamp)
 								.thenComparing(Order::getTotalQuantity, Comparator.reverseOrder())
+								.thenComparing(Order::getId) // 중복 방지를 위한 추가 비교자
 				)
-		).offer(order);
+		).add(order);
 	}
 
 	/**
@@ -398,7 +415,7 @@ public class OrderBookService {
 	/**
 	 * 총 주문 수량 계산
 	 */
-	private BigDecimal calculateTotalQuantity(Queue<Order> orders) {
+	private BigDecimal calculateTotalQuantity(ConcurrentSkipListSet<Order> orders) {
 		return orders.stream()
 				.map(Order::getRemainingQuantity)
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -418,9 +435,9 @@ public class OrderBookService {
 	/**
 	 * 주문 수량 통계 계산
 	 */
-	public Integer getOrderVolumeStats(final TreeMap<BigDecimal, Queue<Order>> orderMap) {
+	public Integer getOrderVolumeStats(final ConcurrentSkipListMap<BigDecimal, ConcurrentSkipListSet<Order>> orderMap) {
 		return orderMap.values().stream()
-				.mapToInt(Queue::size)
+				.mapToInt(ConcurrentSkipListSet::size)
 				.sum();
 	}
 }
