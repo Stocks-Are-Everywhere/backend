@@ -1,12 +1,19 @@
 package org.scoula.backend.member.repository;
 
+import java.util.Optional;
+
 import org.scoula.backend.member.domain.Account;
 import org.scoula.backend.member.domain.Member;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 
-import java.util.Optional;
+import jakarta.persistence.LockModeType;
 
 public interface AccountJpaRepository extends JpaRepository<Account, Long> {
-    Optional<Account> findByMemberId(Long memberId);
-    Optional<Account> findByMember(Member member);
+
+	@Lock(LockModeType.PESSIMISTIC_READ)
+	Optional<Account> findByMemberId(Long memberId);
+
+	@Lock(LockModeType.PESSIMISTIC_READ)
+	Optional<Account> findByMember(Member member);
 }
