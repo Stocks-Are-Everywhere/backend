@@ -17,6 +17,4 @@ public interface MemberRepository {
 	Optional<Member> findByEmail(final String email);
 
 	Member save(final Member member);
-
-	Member getByUsernameWithAccount(final String username);
 }

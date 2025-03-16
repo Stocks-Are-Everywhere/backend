@@ -39,10 +39,4 @@ public class MemberRepositoryImpl implements MemberRepository {
 	public Member save(final Member member) {
 		return memberJpaRepository.save(member);
 	}
-
-	@Override
-	public Member getByUsernameWithAccount(final String username) {
-		return memberJpaRepository.findByUsernameWithAccount(username)
-				.orElseThrow(MemberNotFoundException::new);
-	}
 }
