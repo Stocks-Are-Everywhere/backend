@@ -8,15 +8,17 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
-      max-lifetime: 180000 # 3분 (MySQL wait_timeout보다 짧게 설정)
-      idle-timeout: 10000  # 10초 (유휴 상태에서 연결을 유지하는 시간)
-      validation-timeout: 3000 # 3초 (유효성 검사 대기 시간)
+      maximum-pool-size: 30
+      minimum-idle: 30 # 통일 시켜야한다. 커넥션을 만들고 제거하는 오버헤드 큼.
+      max-lifetime: 1800000 # 30분 (MySQL wait_timeout보다 짧게 설정)
+      idle-timeout: 600000  # 10분 (유휴 상태에서 연결을 유지하는 시간)
+      validation-timeout: 5000 # 5초 (유효성 검사 대기 시간)
       connection-timeout: 30000 # 30초 (새 연결 생성 대기 시간)
       connection-init-sql: SET SESSION wait_timeout=600
 
 
   jpa:
-    hibernate.ddl-auto: create
+    hibernate.ddl-auto: update
     show-sql: true
     properties:
       hibernate.criteria.literal_handling_mode: BIND
@@ -28,11 +30,18 @@ spring:
 
     database-platform: org.hibernate.dialect.MySQL8Dialect
 
-  logging.level:
-    org.hibernate.SQL: debug
-    org.hibernate.type: trace
-    # WebSocket 디버그
-    org.springframework.web.socket: DEBUG
+  logging:
+    level:
+      root: ERROR                           # 루트 로거 레벨을 ERROR로 설정
+      org.hibernate.SQL: ERROR              # Hibernate SQL 로깅 비활성화
+      org.hibernate.type: ERROR             # Hibernate 파라미터 로깅 비활성화
+      org.springframework.web.socket: ERROR # WebSocket 로깅 비활성화
+      org.springframework: ERROR            # Spring 프레임워크 로깅 비활성화
+      com.zaxxer.hikari: ERROR              # HikariCP 로깅 비활성화
+      #org.hibernate.SQL: debug
+      #org.hibernate.type: trace
+      # WebSocket 디버그
+      #org.springframework.web.socket: DEBUG
 
   ki:
     appKey: ${KOREAINVEST_CLIENT_ID}
