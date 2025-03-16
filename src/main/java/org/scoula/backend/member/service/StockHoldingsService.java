@@ -21,7 +21,7 @@ public class StockHoldingsService {
 
 	public void updateHoldingsAfterTrade(final Type type, final Account account, final String companyCode,
 			final BigDecimal price, final BigDecimal quantity) {
-		final Holdings holdings = getOrCreateHoldings(account.getId(), companyCode);
+		final Holdings holdings = getOrCreateHoldings(account, companyCode);
 		holdings.updateHoldings(type, price, quantity);
 		saveHoldings(holdings);
 	}
@@ -30,8 +30,7 @@ public class StockHoldingsService {
 		holdingsRepository.save(holdings);
 	}
 
-	public Holdings getOrCreateHoldings(final Long accountId, final String companyCode) {
-		final Account account = accountRepository.getById(accountId);
+	public Holdings getOrCreateHoldings(final Account account, final String companyCode) {
 		return holdingsRepository.findByAccountIdAndCompanyCode(account.getId(), companyCode)
 				.orElseGet(() -> Holdings.builder()
 						.account(account)
