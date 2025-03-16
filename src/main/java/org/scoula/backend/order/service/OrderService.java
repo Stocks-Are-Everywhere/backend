@@ -88,7 +88,7 @@ public class OrderService {
 	}
 
 	private Order createOrder(final OrderRequest request, final String username) {
-		final Account account = memberRepository.getByUsername(username).getAccount();
+		final Account account = memberRepository.getByUsernameWithAccount(username).getAccount();
 
 		// 매도 시 보유 주식 확인 및 보유 주식 수량 검증 후 예약 매도 수량 설정
 		if (request.type() == Type.SELL) {
