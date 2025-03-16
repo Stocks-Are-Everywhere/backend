@@ -15,6 +15,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -44,6 +45,9 @@ public class Account extends BaseEntity {
 	@OneToOne(fetch = LAZY)
 	@JoinColumn(name = "member_id", nullable = false)
 	private Member member;
+
+	@Version
+	private Long version = 0L;
 
 	public Account(final Member member) {
 		this.member = member;

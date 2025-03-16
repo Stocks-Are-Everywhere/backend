@@ -37,7 +37,7 @@ public class OrderBookService {
 	private final ConcurrentSkipListMap<BigDecimal, ConcurrentSkipListSet<Order>> sellOrders = new ConcurrentSkipListMap<>();
 	// 매수 주문: 높은 가격 우선
 	private final ConcurrentSkipListMap<BigDecimal, ConcurrentSkipListSet<Order>> buyOrders = new ConcurrentSkipListMap<>(
-			Collections.reverseOrder());
+		Collections.reverseOrder());
 
 	private final TradeHistoryService tradeHistoryService;
 
@@ -51,8 +51,8 @@ public class OrderBookService {
 	 * 생성자
 	 */
 	public OrderBookService(final String companyCode, final TradeHistoryService tradeHistoryService,
-			final StockHoldingsService stockHoldingsService, final AccountService accountService,
-			final OrderRepository orderRepository) {
+		final StockHoldingsService stockHoldingsService, final AccountService accountService,
+		final OrderRepository orderRepository) {
 		this.companyCode = companyCode;
 		this.tradeHistoryService = tradeHistoryService;
 		this.stockHoldingsService = stockHoldingsService;
@@ -65,7 +65,7 @@ public class OrderBookService {
 	 */
 	public void received(final Order order) throws MatchingException {
 		log.info("주문 접수 - 종목: {}, 주문ID: {}, 타입: {}, 가격: {}, 수량: {}",
-				companyCode, order.getId(), order.getType(), order.getPrice(), order.getTotalQuantity());
+			companyCode, order.getId(), order.getType(), order.getPrice(), order.getTotalQuantity());
 
 		if (order.getStatus() == OrderStatus.MARKET) {
 			processMarketOrder(order);
@@ -74,7 +74,7 @@ public class OrderBookService {
 		}
 
 		log.info("주문 처리 완료 - 주문ID: {}, 잔여수량: {}",
-				order.getId(), order.getRemainingQuantity());
+			order.getId(), order.getRemainingQuantity());
 	}
 
 	/**
@@ -202,12 +202,13 @@ public class OrderBookService {
 	/**
 	 * 주문 매칭 처리 - 상태 및 수량 변경 후 DB 업데이트 로직 추가
 	 */
-	private void matchOrders(final ConcurrentSkipListSet<Order> existingOrders, final Order incomingOrder) {
+	private synchronized void matchOrders(final ConcurrentSkipListSet<Order> existingOrders,
+		final Order incomingOrder) {
 		// 처리 중에 제외된 주문들을 임시 저장
 		final ConcurrentSkipListSet<Order> skippedOrders = new ConcurrentSkipListSet<>(
-				Comparator.comparing(Order::getTimestamp)
-						.thenComparing(Order::getTotalQuantity, Comparator.reverseOrder())
-						.thenComparing(Order::getId)
+			Comparator.comparing(Order::getTimestamp)
+				.thenComparing(Order::getTotalQuantity, Comparator.reverseOrder())
+				.thenComparing(Order::getId)
 		);
 
 		// 변경된 주문을 추적하기 위한 Set
@@ -227,7 +228,7 @@ public class OrderBookService {
 			}
 
 			final BigDecimal matchedQuantity = incomingOrder.getRemainingQuantity()
-					.min(existingOrder.getRemainingQuantity());
+				.min(existingOrder.getRemainingQuantity());
 			final BigDecimal matchPrice = existingOrder.getPrice(); // 체결 가격은 항상 기존 주문 가격
 
 			// 0. 매칭 전 값들 기록
@@ -242,11 +243,11 @@ public class OrderBookService {
 
 			// 2. 상태나 남은 수량이 변경된 경우 업데이트할 주문 목록에 추가
 			if (originalIncomingStatus != incomingOrder.getStatus()
-					|| originalIncomingRemaining.compareTo(incomingOrder.getRemainingQuantity()) != 0) {
+				|| originalIncomingRemaining.compareTo(incomingOrder.getRemainingQuantity()) != 0) {
 				orderToUpdate.add(incomingOrder);
 			}
 			if (originalExistingStatus != existingOrder.getStatus()
-					|| originalExistingRemaining.compareTo(existingOrder.getRemainingQuantity()) != 0) {
+				|| originalExistingRemaining.compareTo(existingOrder.getRemainingQuantity()) != 0) {
 				orderToUpdate.add(existingOrder);
 			}
 
@@ -295,7 +296,7 @@ public class OrderBookService {
 
 		// 로깅 추가
 		log.info("매칭 후 주문 상태 - 주문ID: {}, 남은 수량: {}, 상태: {}",
-				incomingOrder.getId(), incomingOrder.getRemainingQuantity(), incomingOrder.getStatus());
+			incomingOrder.getId(), incomingOrder.getRemainingQuantity(), incomingOrder.getStatus());
 	}
 
 	/**
@@ -314,31 +315,31 @@ public class OrderBookService {
 				final Order savedOrder = orderRepository.save(order);
 
 				log.info("주문 DB 업데이트 성공 - 주문ID: {}, 상태: {} -> {}, 남은 수량: {} -> {}",
-						savedOrder.getId(), beforeStatus, savedOrder.getStatus(),
-						beforeQuantity, savedOrder.getRemainingQuantity());
+					savedOrder.getId(), beforeStatus, savedOrder.getStatus(),
+					beforeQuantity, savedOrder.getRemainingQuantity());
 			} catch (Exception e) {
 				log.error("주문 DB 업데이트 실패 - 주문ID: {}, 오류: {}",
-						order.getId(), e.getMessage(), e);
+					order.getId(), e.getMessage(), e);
 			}
 		});
 	}
 
 	// 매수/매도 주문 체결 처리
 	private void processTradeMatch(
-			final Order buyOrder, final Order sellOrder, final BigDecimal price, final BigDecimal quantity) {
+		final Order buyOrder, final Order sellOrder, final BigDecimal price, final BigDecimal quantity) {
 		final String companyCode = buyOrder.getCompanyCode();
 		log.info("매수/매도 주문 체결 처리 - 매수ID: {}, 매도ID: {}, 가격: {}, 수량: {}, 종목: {}",
-				buyOrder.getId(), sellOrder.getId(), price, quantity, companyCode);
+			buyOrder.getId(), sellOrder.getId(), price, quantity, companyCode);
 
 		// 1. 거래 내역 저장
 		final TradeHistoryResponse tradeHistory = TradeHistoryResponse.builder()
-				.companyCode(companyCode)
-				.buyOrderId(buyOrder.getId())
-				.sellOrderId(sellOrder.getId())
-				.quantity(quantity)
-				.price(price)
-				.tradeTime(Instant.now().getEpochSecond())
-				.build();
+			.companyCode(companyCode)
+			.buyOrderId(buyOrder.getId())
+			.sellOrderId(sellOrder.getId())
+			.quantity(quantity)
+			.price(price)
+			.tradeTime(Instant.now().getEpochSecond())
+			.build();
 		tradeHistoryService.saveTradeHistory(tradeHistory);
 
 		// 2. 계좌 잔액 처리
@@ -354,19 +355,19 @@ public class OrderBookService {
 	 * 주문장에 주문 추가
 	 */
 	private void addToOrderBook(final ConcurrentSkipListMap<BigDecimal, ConcurrentSkipListSet<Order>> orderBook,
-			final Order order) {
+		final Order order) {
 		if (order.getPrice().compareTo(BigDecimal.ZERO) == 0) {
 			log.warn("시장가 주문은 주문장에 추가할 수 없습니다: {}", order);
 			return;
 		}
 
 		orderBook.computeIfAbsent(
-				order.getPrice(),
-				k -> new ConcurrentSkipListSet<>(
-						Comparator.comparing(Order::getTimestamp)
-								.thenComparing(Order::getTotalQuantity, Comparator.reverseOrder())
-								.thenComparing(Order::getId) // 중복 방지를 위한 추가 비교자
-				)
+			order.getPrice(),
+			k -> new ConcurrentSkipListSet<>(
+				Comparator.comparing(Order::getTimestamp)
+					.thenComparing(Order::getTotalQuantity, Comparator.reverseOrder())
+					.thenComparing(Order::getId) // 중복 방지를 위한 추가 비교자
+			)
 		).add(order);
 	}
 
@@ -384,10 +385,10 @@ public class OrderBookService {
 		final List<PriceLevelDto> sellLevels = createAskLevels();
 		final List<PriceLevelDto> buyLevels = createBidLevels();
 		return OrderBookResponse.builder()
-				.companyCode(companyCode)
-				.sellLevels(sellLevels)
-				.buyLevels(buyLevels)
-				.build();
+			.companyCode(companyCode)
+			.sellLevels(sellLevels)
+			.buyLevels(buyLevels)
+			.build();
 	}
 
 	/**
@@ -395,10 +396,10 @@ public class OrderBookService {
 	 */
 	private List<PriceLevelDto> createAskLevels() {
 		return this.sellOrders.entrySet().stream()
-				.limit(10)
-				.map(entry -> new PriceLevelDto(
-						entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
-				).toList();
+			.limit(10)
+			.map(entry -> new PriceLevelDto(
+				entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
+			).toList();
 	}
 
 	/**
@@ -406,10 +407,10 @@ public class OrderBookService {
 	 */
 	private List<PriceLevelDto> createBidLevels() {
 		return this.buyOrders.entrySet().stream()
-				.limit(10)
-				.map(entry -> new PriceLevelDto(
-						entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
-				).toList();
+			.limit(10)
+			.map(entry -> new PriceLevelDto(
+				entry.getKey(), calculateTotalQuantity(entry.getValue()), entry.getValue().size())
+			).toList();
 	}
 
 	/**
@@ -417,8 +418,8 @@ public class OrderBookService {
 	 */
 	private BigDecimal calculateTotalQuantity(ConcurrentSkipListSet<Order> orders) {
 		return orders.stream()
-				.map(Order::getRemainingQuantity)
-				.reduce(BigDecimal.ZERO, BigDecimal::add);
+			.map(Order::getRemainingQuantity)
+			.reduce(BigDecimal.ZERO, BigDecimal::add);
 	}
 
 	/**
@@ -426,9 +427,9 @@ public class OrderBookService {
 	 */
 	public OrderSummaryResponse getSummary() {
 		return new OrderSummaryResponse(
-				companyCode,
-				getOrderVolumeStats(sellOrders),
-				getOrderVolumeStats(buyOrders)
+			companyCode,
+			getOrderVolumeStats(sellOrders),
+			getOrderVolumeStats(buyOrders)
 		);
 	}
 
@@ -437,7 +438,7 @@ public class OrderBookService {
 	 */
 	public Integer getOrderVolumeStats(final ConcurrentSkipListMap<BigDecimal, ConcurrentSkipListSet<Order>> orderMap) {
 		return orderMap.values().stream()
-				.mapToInt(ConcurrentSkipListSet::size)
-				.sum();
+			.mapToInt(ConcurrentSkipListSet::size)
+			.sum();
 	}
 }
