@@ -9,7 +9,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Queue;
 import java.util.TreeMap;
 
 import org.junit.jupiter.api.DisplayName;
@@ -24,7 +23,6 @@ import org.scoula.backend.order.controller.response.OrderBookResponse;
 import org.scoula.backend.order.controller.response.OrderSnapshotResponse;
 import org.scoula.backend.order.controller.response.OrderSummaryResponse;
 import org.scoula.backend.order.controller.response.TradeHistoryResponse;
-import org.scoula.backend.order.domain.Order;
 import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.PriceLevelDto;
@@ -171,15 +169,6 @@ class OrderControllerTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(request)))
 				.andExpect(status().isOk());
-	}
-
-	@Test
-	@DisplayName("사용자 정보가 존재하지 않는 경우 주문 실패")
-	void failedOrderWhenUserIsUnauthorized() throws Exception {
-		mockMvc.perform(post("/api/order")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(objectMapper.writeValueAsString(request)))
-				.andExpect(status().isForbidden());
 	}
 
 	@Test

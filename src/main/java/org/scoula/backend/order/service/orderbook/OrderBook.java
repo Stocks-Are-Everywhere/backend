@@ -18,7 +18,6 @@ import org.scoula.backend.order.domain.OrderStatus;
 import org.scoula.backend.order.domain.TradeOrder;
 import org.scoula.backend.order.domain.Type;
 import org.scoula.backend.order.dto.PriceLevelDto;
-import org.scoula.backend.order.service.TradeHistoryService;
 import org.scoula.backend.order.service.exception.MatchingException;
 
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +38,7 @@ public class OrderBook {
 	/**
 	 * 생성자
 	 */
-	public OrderBook(final String companyCode, TradeHistoryService tradeHistoryService) {
+	public OrderBook(final String companyCode) {
 		this.companyCode = companyCode;
 	}
 
@@ -80,9 +79,7 @@ public class OrderBook {
 
 			// 매수 큐가 비었으면 제거
 			if (bestBuy.getValue().isEmpty()) {
-				synchronized (bestBuy.getKey()) {
-					buyOrders.remove(bestBuy.getKey());
-				}
+				buyOrders.remove(bestBuy.getKey());
 			}
 		}
 		return responses;
@@ -106,9 +103,7 @@ public class OrderBook {
 
 			// 매도 큐가 비었으면 제거
 			if (bestSell.getValue().isEmpty()) {
-				synchronized (bestSell.getKey()) {
-					sellOrders.remove(bestSell.getKey());
-				}
+				sellOrders.remove(bestSell.getKey());
 			}
 		}
 		return responses;
@@ -133,7 +128,7 @@ public class OrderBook {
 			// 매도가보다 높거나 같은 매수 주문 찾기
 			Map.Entry<Price, OrderStorage> bestBuy = buyOrders.firstEntry();
 
-			if (bestBuy == null || bestBuy.getKey().isHigherThan(sellOrder.getPrice())) {
+			if (bestBuy == null || bestBuy.getKey().isLowerThan(sellOrder.getPrice())) {
 				// 매칭되는 매수 주문이 없으면 주문장에 추가
 				if (sellOrder.getPrice().compareTo(BigDecimal.ZERO) != 0) {
 					addToOrderBook(sellOrders, sellOrder);
@@ -161,7 +156,7 @@ public class OrderBook {
 			// 매수가보다 낮거나 같은 매도 주문 찾기
 			Map.Entry<Price, OrderStorage> bestSell = sellOrders.firstEntry();
 
-			if (bestSell == null || bestSell.getKey().isLowerThan(buyOrder.getPrice())) {
+			if (bestSell == null || bestSell.getKey().isHigherThan(buyOrder.getPrice())) {
 				if (buyOrder.getPrice().compareTo(BigDecimal.ZERO) != 0) {
 					addToOrderBook(buyOrders, buyOrder);
 				}
@@ -173,7 +168,7 @@ public class OrderBook {
 
 			// 매수 큐가 비었으면 제거
 			if (bestSell.getValue().isEmpty()) {
-				buyOrders.remove(bestSell.getKey());
+				sellOrders.remove(bestSell.getKey());
 			}
 		}
 		return responses;
